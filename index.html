@@ -2,606 +2,1615 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>FUJI MINIMAL | Smart Japan Itinerary & GPS Planner</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FUJI HORIZON | Japan Smart Trip & GPS Planner (2-8 Nov)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root { --app-font-size: 15px; }
-    html { font-size: var(--app-font-size); }
+    :root {
+      --bg-dark: #0b1120;
+      --bg-panel: #151f32;
+      --bg-card: #1e293b;
+      --bg-card-hover: #26354d;
+      --border-color: #334155;
+      --accent-pink: #ec4899;
+      --accent-rose: #f43f5e;
+      --accent-amber: #f59e0b;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Kanit', 'Noto Sans JP', sans-serif;
-      background-color: #f8fafc;
-      color: #1e293b;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
+      font-family: 'Kanit', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      line-height: 1.45;
+      overflow-x: hidden;
     }
-    .minimal-card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+
+    button, select, input { font-family: inherit; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-dark); }
+    ::-webkit-scrollbar-thumb { background: var(--accent-pink); border-radius: 3px; }
+
+    /* ==================== LANDING OVERLAY ==================== */
+    #landingOverlay {
+      position: fixed; inset: 0; z-index: 999;
+      background: radial-gradient(circle at top, #311042 0%, #1e1b4b 55%, #090d16 100%);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px; overflow-y: auto;
     }
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .landing-box {
+      max-width: 620px; width: 100%;
+      background: rgba(21, 31, 50, 0.92);
+      border: 2px solid rgba(236, 72, 153, 0.45);
+      border-radius: 24px; padding: 24px;
+      text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.75);
+    }
+    .logo-wrap {
+      width: 200px; height: 200px; margin: 0 auto 14px;
+      position: relative; filter: drop-shadow(0 6px 0 #090d16);
+    }
+    .logo-badge {
+      position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+      background: var(--accent-pink); color: #fff; font-size: 11px; font-weight: 700;
+      padding: 3px 12px; border-radius: 99px; border: 2px solid #090d16; white-space: nowrap;
+    }
+    .landing-title {
+      font-size: 32px; font-weight: 800; letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #f472b6, #fde047, #38bdf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .landing-sub { font-size: 14px; color: #cbd5e1; margin: 6px 0 16px; }
+    .btn-enter {
+      width: 100%; padding: 14px 20px; font-size: 18px; font-weight: 700; color: #fff;
+      background: linear-gradient(90deg, var(--accent-pink), var(--accent-rose), var(--accent-amber));
+      border: 2px solid rgba(255,255,255,0.25); border-radius: 16px;
+      cursor: pointer; box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
+      transition: transform 0.15s, filter 0.15s; margin-bottom: 16px;
+    }
+    .btn-enter:hover { filter: brightness(1.1); transform: translateY(-2px); }
+    .ping-grid-landing {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      background: rgba(11, 17, 32, 0.8); padding: 10px; border-radius: 14px; border: 1px solid var(--border-color);
+      text-align: left; font-size: 12px;
+    }
+    .ping-cell { background: var(--bg-panel); padding: 8px; border-radius: 8px; border: 1px solid #26354d; }
+    .ping-cell span { color: var(--text-muted); font-size: 11px; display: block; }
+    .ping-cell strong { color: var(--accent-emerald); font-size: 12px; }
+
+    /* ==================== TOP HEADER ==================== */
+    .app-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-color); padding: 10px 16px;
+    }
+    .header-inner {
+      max-width: 1560px; margin: 0 auto;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .brand-group { display: flex; align-items: center; gap: 10px; }
+    .brand-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-pink), #4f46e5);
+      display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border: none; color: #fff;
+    }
+    .nav-tabs { display: flex; gap: 6px; background: var(--bg-dark); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color); }
+    .nav-btn {
+      padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      background: transparent; color: var(--text-muted); border: none; cursor: pointer; transition: 0.15s;
+    }
+    .nav-btn.active { background: var(--accent-pink); color: #fff; }
+    .ping-bar {
+      display: flex; align-items: center; gap: 10px; font-size: 12px;
+      background: var(--bg-panel); padding: 6px 12px; border-radius: 10px; border: 1px solid var(--border-color);
+    }
+    .dot-online { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-emerald); display: inline-block; }
+
+    /* ==================== MAIN CONTAINER ==================== */
+    .main-wrap { max-width: 1560px; width: 100%; margin: 0 auto; padding: 12px 16px; }
+
+    /* ==================== DAY SELECTOR MATRIX (7 DAYS CLEAR DISPLAY) ==================== */
+    .day-strip-panel {
+      background: var(--bg-panel); border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 12px; margin-bottom: 12px;
+    }
+    .day-strip-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
+    }
+    .day-cards-grid {
+      display: grid; grid-template-columns: repeat(7, minmax(150px, 1fr)); gap: 8px; overflow-x: auto; padding-bottom: 4px;
+    }
+    .day-card {
+      background: var(--bg-card); border: 2px solid var(--border-color);
+      border-radius: 12px; padding: 10px; cursor: pointer; text-align: left;
+      transition: all 0.15s; position: relative;
+    }
+    .day-card:hover { border-color: #64748b; background: var(--bg-card-hover); }
+    .day-card.active {
+      background: linear-gradient(135deg, rgba(236, 72, 153, 0.25), rgba(245, 158, 11, 0.15));
+      border-color: var(--accent-pink);
+      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.25);
+    }
+    .day-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .day-num-badge {
+      font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px;
+      background: #0f172a; color: var(--accent-cyan);
+    }
+    .day-card.active .day-num-badge { background: var(--accent-pink); color: #fff; }
+    .day-count-pill {
+      font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 99px;
+      background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .day-date-title { font-size: 15px; font-weight: 700; color: #fff; }
+    .day-route-sub { font-size: 11px; color: #cbd5e1; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .day-trans-tag { font-size: 11px; color: var(--accent-amber); margin-top: 4px; font-weight: 600; }
+
+    /* ==================== AI ADVISOR & CONTROLS BAR ==================== */
+    .ai-bar {
+      background: linear-gradient(90deg, rgba(30, 27, 75, 0.9), rgba(49, 16, 66, 0.85));
+      border: 1px solid #6366f1; border-radius: 14px; padding: 12px 16px; margin-bottom: 12px;
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .ai-bar.warning { background: rgba(127, 29, 29, 0.45); border-color: var(--accent-rose); }
+    .trans-switch { display: flex; align-items: center; gap: 6px; background: var(--bg-dark); padding: 5px 8px; border-radius: 10px; border: 1px solid var(--border-color); }
+    .btn-trans {
+      padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 700; border: none; cursor: pointer;
+      background: transparent; color: var(--text-muted);
+    }
+    .btn-trans.active-car { background: var(--accent-amber); color: #090d16; }
+    .btn-trans.active-train { background: var(--accent-cyan); color: #090d16; }
+
+    /* ==================== 3-COLUMN WORKSPACE GRID ==================== */
+    .workspace-grid {
+      display: grid; grid-template-columns: 5fr 4fr 3fr; gap: 12px; align-items: start;
+    }
+    @media (max-width: 1150px) {
+      .workspace-grid { grid-template-columns: 1fr 1fr; }
+      .col-map { grid-column: span 2; }
+    }
+    @media (max-width: 768px) {
+      .workspace-grid { grid-template-columns: 1fr; }
+      .col-map { grid-column: span 1; }
+      .ping-grid-landing { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .panel-box {
+      background: var(--bg-panel); border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 14px; display: flex; flex-direction: column;
+      height: 670px;
+    }
+    .panel-title-row {
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 10px;
+    }
+    .panel-title { font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; }
+
+    /* Filters */
+    .filter-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .input-ctrl {
+      width: 100%; background: var(--bg-dark); border: 1px solid var(--border-color);
+      color: #fff; padding: 8px 10px; border-radius: 9px; font-size: 12px; outline: none;
+    }
+    .input-ctrl:focus { border-color: var(--accent-pink); }
+
+    /* Scrollable Lists */
+    .scroll-list { flex: 1; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 8px; }
+
+    /* Database Item Card */
+    .db-card {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: 12px; padding: 10px 12px; transition: 0.15s;
+    }
+    .db-card:hover { border-color: #64748b; }
+    .db-card.in-day { border-color: var(--accent-emerald); background: rgba(16, 185, 129, 0.08); }
+    .db-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .zone-tag {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      padding: 2px 6px; border-radius: 4px; background: #312e81; color: #a5b4fc;
+    }
+    .cat-tag { font-size: 11px; color: var(--text-muted); margin-left: 4px; }
+    .place-title { font-size: 14px; font-weight: 700; color: #fff; margin-top: 3px; cursor: pointer; }
+    .place-title:hover { color: var(--accent-pink); text-decoration: underline; }
+    .place-desc { font-size: 12px; color: #cbd5e1; margin-top: 4px; }
+    .db-footer {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.07); font-size: 11px;
+    }
+    .gps-code { font-family: monospace; font-weight: 700; color: #fde047; font-size: 12px; }
+
+    /* Buttons */
+    .btn-sm {
+      padding: 4px 9px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      border: 1px solid var(--border-color); background: var(--bg-dark); color: #e2e8f0; cursor: pointer;
+    }
+    .btn-sm:hover { background: #334155; }
+    .btn-add { background: var(--accent-pink); color: #fff; border: none; padding: 6px 11px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+    .btn-add.added { background: rgba(16, 185, 129, 0.25); color: #34d399; border: 1px solid #10b981; }
+    .btn-info { background: rgba(245, 158, 11, 0.18); color: #fde047; border: 1px solid rgba(245, 158, 11, 0.45); }
+    .btn-map { background: rgba(6, 182, 212, 0.15); color: #67e8f9; border: 1px solid rgba(6, 182, 212, 0.4); }
+
+    /* Itinerary Item Card */
+    .itin-card {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: 12px; padding: 10px; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    }
+    .step-num {
+      width: 24px; height: 24px; border-radius: 50%; background: var(--accent-pink); color: #fff;
+      font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+    }
+    .ctrl-col { display: flex; flex-direction: column; gap: 3px; }
+    .btn-icon {
+      width: 24px; height: 22px; border-radius: 5px; border: 1px solid var(--border-color);
+      background: var(--bg-dark); color: #cbd5e1; font-size: 10px; cursor: pointer;
+    }
+    .btn-icon:hover { background: #334155; }
+    .btn-icon.del { background: #4c0519; color: #fda4af; border-color: #881337; }
+
+    /* Right Column (Map + Photo Vault) */
+    .right-stack { display: flex; flex-direction: column; gap: 12px; height: 670px; }
+    .map-card {
+      background: var(--bg-panel); border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 12px; flex: 1; display: flex; flex-direction: column;
+    }
+    .map-frame-wrap { flex: 1; border-radius: 10px; overflow: hidden; border: 1px solid var(--border-color); background: #090d16; }
+    .vault-card {
+      background: var(--bg-panel); border: 1px solid var(--border-color);
+      border-radius: 16px; padding: 12px; height: 235px; display: flex; flex-direction: column;
+    }
+    .photo-grid { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 6px; }
+    .photo-thumb { position: relative; height: 70px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: #000; }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-caption { position: absolute; inset: auto 0 0 0; background: rgba(0,0,0,0.75); font-size: 9px; padding: 2px 5px; color: #fff; display: flex; justify-content: space-between; }
+
+    /* ==================== POPUP MODAL ==================== */
+    #infoModal {
+      position: fixed; inset: 0; z-index: 950;
+      background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(5px);
+      display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-box {
+      max-width: 680px; width: 100%; background: var(--bg-panel);
+      border: 2px solid var(--accent-pink); border-radius: 20px; padding: 20px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.85); max-height: 90vh; overflow-y: auto;
+    }
+    .info-section {
+      background: var(--bg-card); border-left: 4px solid var(--accent-cyan);
+      padding: 12px 14px; border-radius: 10px; margin-top: 12px; font-size: 13.5px;
+    }
+    .info-section.tips { border-left-color: var(--accent-amber); background: rgba(245, 158, 11, 0.08); }
+
+    /* Summary Table */
+    .sum-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
+    .sum-table th, .sum-table td { padding: 9px 10px; border-bottom: 1px solid var(--border-color); text-align: left; vertical-align: top; }
+    .sum-table th { color: var(--text-muted); background: rgba(15, 23, 42, 0.6); }
+
+    /* Toast */
+    #toastBanner {
+      position: fixed; bottom: 18px; right: 18px; z-index: 1000;
+      background: #0f172a; border: 2px solid var(--accent-pink); color: #fff;
+      padding: 10px 16px; border-radius: 12px; font-size: 13px; font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6); display: none;
+    }
   </style>
-  <script>
-    // Fail-safe Login Transition
-    function enterApp() {
-      document.getElementById("landingView").style.display = "none";
-      document.getElementById("appView").style.display = "flex";
-    }
-    function openLanding() {
-      document.getElementById("landingView").style.display = "flex";
-    }
-  </script>
 </head>
-<body class="min-h-screen flex flex-col pb-16 md:pb-0">
+<body>
 
-  <!-- ==================== 1. MINIMAL ANIME LANDING PAGE ==================== -->
-  <section id="landingView" style="display: flex;" class="fixed inset-0 z-50 bg-slate-50 flex-col items-center justify-center p-5 overflow-y-auto">
-    <div class="max-w-md w-full minimal-card rounded-3xl p-6 md:p-8 text-center space-y-6 my-auto">
-      
-      <!-- Clean Anime Mt. Fuji SVG Logo (Minimalist Pastel Style) -->
-      <div class="w-40 h-40 mx-auto relative">
-        <svg viewBox="0 0 240 240" class="w-full h-full rounded-full border-2 border-slate-200 bg-slate-100 shadow-sm overflow-hidden">
-          <!-- Soft Pastel Sun -->
-          <circle cx="120" cy="115" r="58" fill="#fca5a5" opacity="0.85"/>
-          <!-- Minimal Clouds -->
-          <path d="M25 120 Q45 110 65 120 T105 120 L105 128 L25 128 Z" fill="#ffffff" opacity="0.9"/>
-          <path d="M145 95 Q165 85 185 95 T215 95 L215 103 L145 103 Z" fill="#ffffff" opacity="0.9"/>
-          <!-- Mt. Fuji Cel-Shaded Minimal -->
-          <path d="M15 205 Q78 155 100 88 L140 88 Q162 155 225 205 Z" fill="#475569" stroke="#334155" stroke-width="3"/>
-          <path d="M120 88 L140 88 Q162 155 225 205 L120 205 Z" fill="#334155"/>
+  <!-- ==================== 1. LANDING OVERLAY ==================== -->
+  <div id="landingOverlay">
+    <div class="landing-box">
+      <div class="logo-wrap">
+        <svg viewBox="0 0 300 300" style="width:100%;height:100%;border-radius:50%;border:4px solid #f472b6;background:linear-gradient(180deg,#1e1b4b 0%,#831843 60%,#d97706 100%);">
+          <circle cx="50" cy="50" r="2" fill="#fff"/>
+          <circle cx="240" cy="45" r="2.5" fill="#fff"/>
+          <circle cx="150" cy="135" r="76" fill="#f43f5e" stroke="#fda4af" stroke-width="3"/>
+          <path d="M25 145 Q50 130 75 145 T125 145 L125 155 L25 155 Z" fill="#fbcfe8" opacity="0.85"/>
+          <path d="M185 120 Q215 105 245 120 T285 120 L285 132 L185 132 Z" fill="#fed7aa" opacity="0.85"/>
+          <!-- Mt Fuji -->
+          <path d="M15 255 Q95 190 126 105 L174 105 Q205 190 285 255 Z" fill="#1e3a8a" stroke="#0f172a" stroke-width="4"/>
+          <path d="M150 105 L174 105 Q205 190 285 255 L150 255 Z" fill="#172554"/>
           <!-- Snow Cap -->
-          <path d="M100 88 L140 88 Q149 115 157 130 L141 122 L131 134 L120 120 L109 134 L99 122 L83 130 Q91 115 100 88 Z" fill="#ffffff" stroke="#334155" stroke-width="2.5" stroke-linejoin="round"/>
-          <!-- Calm Lake Base -->
-          <rect x="0" y="195" width="240" height="45" fill="#e2e8f0"/>
-          <path d="M65 212 H175 M85 222 H155" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M126 105 L174 105 Q186 140 198 162 L177 150 L165 168 L150 148 L135 168 L122 152 L102 162 Q114 140 126 105 Z" fill="#ffffff" stroke="#0f172a" stroke-width="3.5" stroke-linejoin="round"/>
+          <rect x="0" y="242" width="300" height="60" fill="#0f172a"/>
+          <line x1="0" y1="238" x2="300" y2="238" stroke="#f59e0b" stroke-width="3" stroke-dasharray="10,4"/>
+          <rect x="75" y="229" width="150" height="7" rx="3" fill="#38bdf8"/>
+          <path d="M60 265 H240 M95 276 H205" stroke="#f472b6" stroke-width="3" stroke-linecap="round"/>
         </svg>
+        <div class="logo-badge">ANIME EDITION • 2 - 8 NOV</div>
       </div>
 
-      <div class="space-y-1.5">
-        <span class="text-xs font-medium uppercase tracking-widest text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-200">
-          Japan Trip Planner • 2026
-        </span>
-        <h1 class="text-2xl md:text-3xl font-semibold text-slate-800 pt-1" data-i18n="appTitle">
-          FUJI HORIZON
-        </h1>
-        <p class="text-xs md:text-sm text-slate-500 leading-relaxed" data-i18n="appSub">
-          ระบบวางแผนทริปญี่ปุ่นสไตล์มินิมอล พร้อมพิกัดเบอร์โทร GPS รถยนต์, ตลาดปลา, เรียวกังออนเซ็น และผู้ช่วย AI จัดทริปรายวัน
-        </p>
-      </div>
+      <h1 class="landing-title">FUJI HORIZON</h1>
+      <p class="landing-sub">
+        ระบบจัดแผนการเดินทางญี่ปุ่น (2 – 8 พ.ย.) นาริตะ • คามาคูระ • ฮาโกเน่ • ชิซึโอกะ • ฟูจิ • อิบารากิ • อุเอโนะ<br/>
+        พร้อมพิกัดเบอร์โทร GPS รถยนต์ • คลังความรู้จาก LM • เชื่อมต่อ Google Maps, Sheet & Drive
+      </p>
 
-      <!-- Language Selector on Landing -->
-      <div class="flex items-center justify-center gap-2 pt-1">
-        <button type="button" onclick="setLanguage('th')" id="landLangTH" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 text-white">🇹🇭 ไทย</button>
-        <button type="button" onclick="setLanguage('en')" id="landLangEN" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">🇬🇧 English</button>
-        <button type="button" onclick="setLanguage('jp')" id="landLangJP" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200">🇯🇵 日本語</button>
-      </div>
-
-      <!-- Minimal Ping Check Bar -->
-      <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200 text-left space-y-2">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-medium text-slate-600 flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-teal-500"></span>
-            <span data-i18n="pingStatus">สถานะการเชื่อมต่อ Google</span>
-          </span>
-          <button type="button" onclick="runAllPings()" class="text-teal-700 hover:underline font-medium">Ping ↻</button>
-        </div>
-        <div class="grid grid-cols-3 gap-2 text-[11px] text-center">
-          <div class="bg-white p-2 rounded-xl border border-slate-200">
-            <div class="text-slate-400">Maps</div>
-            <div id="landPingMap" class="font-semibold text-teal-700 mt-0.5">OK</div>
-          </div>
-          <div class="bg-white p-2 rounded-xl border border-slate-200">
-            <div class="text-slate-400">Sheets</div>
-            <div id="landPingSheet" class="font-semibold text-teal-700 mt-0.5">OK</div>
-          </div>
-          <div class="bg-white p-2 rounded-xl border border-slate-200">
-            <div class="text-slate-400">Drive</div>
-            <div id="landPingDrive" class="font-semibold text-teal-700 mt-0.5">OK</div>
-          </div>
-        </div>
-      </div>
-
-      <button type="button" onclick="enterApp()" class="w-full py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-base shadow-sm transition cursor-pointer" data-i18n="btnEnter">
-        เข้าสู่ระบบวางแผนการเดินทาง →
+      <button type="button" class="btn-enter" onclick="startSystem()">
+        🚀 เข้าสู่ระบบจัดการทริปท่องเที่ยว (คลิกที่นี่)
       </button>
-    </div>
-  </section>
 
-  <!-- ==================== 2. MAIN APPLICATION VIEW ==================== -->
-  <div id="appView" style="display: none;" class="flex-1 flex flex-col min-h-screen">
-    
-    <!-- Top Minimal Header (Responsive) -->
-    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-3 md:px-6 py-2.5">
-      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-        
-        <!-- Logo & Title -->
-        <div class="flex items-center gap-2.5">
-          <button type="button" onclick="openLanding()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center text-lg">
-            🗻
-          </button>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="font-semibold text-slate-800 text-sm md:text-base">FUJI HORIZON</span>
-              <span id="headerPingBadge" class="text-[11px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">Ping: 22ms</span>
-            </div>
-            <p class="text-[11px] text-slate-400 hidden sm:block" data-i18n="headerSub">แผนเดินทางอ้างอิงปฏิทิน 2 – 8 พ.ย. (Day 1 – Day 7)</p>
-          </div>
-        </div>
-
-        <!-- Right Controls: AI Wizard Button + Language Switcher + Font Size Adjuster -->
-        <div class="flex items-center gap-1.5 md:gap-2">
-          <!-- Special Function: AI Smart Wizard Popup Trigger -->
-          <button type="button" onclick="openAiWizardModal()" class="px-3 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white text-xs font-medium shadow-sm flex items-center gap-1 transition">
-            <span>✨</span>
-            <span data-i18n="btnAiWizard">AI ช่วยจัดทริป</span>
-          </button>
-
-          <!-- Language Switcher (TH / EN / JP) -->
-          <div class="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
-            <button type="button" onclick="setLanguage('th')" id="navLangTH" class="px-2 py-1 rounded-lg font-medium bg-white text-slate-800 shadow-sm">TH</button>
-            <button type="button" onclick="setLanguage('en')" id="navLangEN" class="px-2 py-1 rounded-lg font-medium text-slate-500">EN</button>
-            <button type="button" onclick="setLanguage('jp')" id="navLangJP" class="px-2 py-1 rounded-lg font-medium text-slate-500">JP</button>
-          </div>
-
-          <!-- Font Size Scaler (A- / A / A+) -->
-          <div class="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs" title="ปรับขนาดตัวอักษร">
-            <button type="button" onclick="changeFontSize(-1)" class="px-2 py-1 rounded-lg text-slate-600 hover:bg-white font-medium">A-</button>
-            <button type="button" onclick="changeFontSize(0)" class="px-1.5 py-1 rounded-lg text-slate-500 hover:bg-white text-[11px]">A</button>
-            <button type="button" onclick="changeFontSize(1)" class="px-2 py-1 rounded-lg text-slate-800 hover:bg-white font-bold">A+</button>
-          </div>
-        </div>
-
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;">
+        <span style="color:#f472b6;font-weight:700;">📡 สถานะการเชื่อมต่อ Google Services (Ping Check)</span>
+        <button type="button" class="btn-sm" onclick="runAllPings()">🔄 ทดสอบ Ping</button>
       </div>
+      <div class="ping-grid-landing">
+        <div class="ping-cell"><span>🗺️ Google Maps</span><strong id="lpPingMap">ONLINE (18ms)</strong></div>
+        <div class="ping-cell"><span>📊 Google Sheet</span><strong id="lpPingSheet">ONLINE (24ms)</strong></div>
+        <div class="ping-cell"><span>📁 Google Drive</span><strong id="lpPingDrive">ONLINE (21ms)</strong></div>
+        <div class="ping-cell"><span>🤖 AI & LM DB</span><strong id="lpPingAI">READY (38 จุด)</strong></div>
+      </div>
+    </div>
+  </div>
 
-      <!-- Desktop Navigation Bar (Hidden on Mobile, replaced by Bottom Bar) -->
-      <div class="max-w-7xl mx-auto hidden md:flex items-center justify-between pt-2.5 mt-2 border-t border-slate-100 text-xs">
-        <div class="flex items-center gap-2">
-          <button type="button" onclick="switchTab('planner')" id="deskTabPlanner" class="px-3.5 py-1.5 rounded-xl font-medium bg-slate-800 text-white" data-i18n="navPlanner">
-            1. จัดแผนรายวัน & คลังสถานที่
-          </button>
-          <button type="button" onclick="switchTab('summary')" id="deskTabSummary" class="px-3.5 py-1.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100" data-i18n="navSummary">
-            2. สรุปแผนทั้งทริป & เบอร์ GPS
-          </button>
-          <button type="button" onclick="switchTab('cloud')" id="deskTabCloud" class="px-3.5 py-1.5 rounded-xl font-medium text-slate-600 hover:bg-slate-100" data-i18n="navCloud">
-            3. เชื่อมต่อ Google Sheet / Drive & Ping
-          </button>
+  <!-- ==================== 2. MAIN APPLICATION ==================== -->
+  <div id="appShell" style="display:none;">
+    
+    <!-- Top Bar -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand-group">
+          <button type="button" class="brand-icon" onclick="openLanding()" title="กลับหน้าปก">🗻</button>
+          <div>
+            <div style="font-weight:800;font-size:16px;color:#fff;">
+              FUJI HORIZON <span style="font-size:11px;background:#831843;color:#fbcfe8;padding:2px 8px;border-radius:99px;">ทริป 2 – 8 พ.ย.</span>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-muted);">
+              คลิกการ์ดวันที่ด้านล่างเพื่อสลับวัน • คลิกปุ่ม <strong style="color:#fde047;">"📖 อ่านความรู้"</strong> เพื่อดูจุดเด่นและคำแนะนำจาก LM
+            </div>
+          </div>
         </div>
-        <div class="flex items-center gap-2 text-slate-500">
-          <span data-i18n="startDateLabel">วันเริ่มเดินทาง:</span>
-          <input type="date" id="tripStartDate" value="2026-11-02" onchange="updateCalendarDates()" class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700"/>
+
+        <div class="nav-tabs">
+          <button type="button" id="navPlanner" class="nav-btn active" onclick="switchView('planner')">🗓️ ตารางจัดทริปรายวัน (วันที่ 2-8)</button>
+          <button type="button" id="navSummary" class="nav-btn" onclick="switchView('summary')">📋 สรุปทริปทั้งหมด & พิมพ์ใบนำทาง GPS</button>
+          <button type="button" id="navCloud" class="nav-btn" onclick="switchView('cloud')">☁️ เชื่อมต่อ Google Sheet / Drive & Ping</button>
+        </div>
+
+        <div class="ping-bar">
+          <span class="dot-online" id="hdrPingDot"></span>
+          <span>Google Ping: <strong id="hdrPingVal" style="color:var(--accent-emerald);">21 ms</strong></span>
+          <span style="color:#475569;">|</span>
+          <span id="hdrCloudState" style="color:#fde047;">โหมดบันทึกในเครื่อง</span>
         </div>
       </div>
     </header>
 
-    <!-- ==================== DAY SELECTOR BAR (Calendar Date + Trip Day Number) ==================== -->
-    <div id="daySelectorBar" class="bg-slate-100/80 border-b border-slate-200 px-3 md:px-6 py-2.5">
-      <div class="max-w-7xl mx-auto flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-        <div id="dayButtonsContainer" class="flex items-center gap-2"></div>
-        <button type="button" onclick="resetToDefaultPlan()" class="shrink-0 text-xs text-slate-600 hover:text-slate-900 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm" data-i18n="btnResetDefault">
-          ↻ โหลดแผนตั้งต้น
-        </button>
-      </div>
-    </div>
+    <main class="main-wrap">
 
-    <!-- ==================== MAIN CONTENT AREA ==================== -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-3 md:p-6">
-
-      <!-- TAB 1: PLANNER WORKSPACE -->
-      <div id="tabContentPlanner" class="space-y-4">
+      <!-- ==================== VIEW 1: PLANNER ==================== -->
+      <div id="viewPlanner">
         
-        <!-- Mobile Sub-View Switcher (ให้หน้าจอมือถือไม่รก เลือกสลับดู คลังสถานที่ vs ตารางวันนี้) -->
-        <div class="flex lg:hidden bg-slate-200/80 p-1 rounded-xl text-xs font-medium">
-          <button type="button" onclick="switchMobilePane('catalog')" id="mobBtnCatalog" class="flex-1 py-2 rounded-lg bg-white text-slate-800 shadow-sm" data-i18n="mobCatalog">
-            📍 เลือกสถานที่ท่องเที่ยว
-          </button>
-          <button type="button" onclick="switchMobilePane('itinerary')" id="mobBtnItinerary" class="flex-1 py-2 rounded-lg text-slate-600" data-i18n="mobItinerary">
-            🗓️ แผนของวันนี้ & แผนที่
-          </button>
-        </div>
-
-        <!-- AI Route Guard Banner (Minimalist) -->
-        <div id="aiRouteBanner" class="minimal-card rounded-2xl p-3.5 md:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-l-4 border-l-teal-600">
-          <div class="space-y-0.5">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold text-teal-800" data-i18n="aiBannerTitle">🤖 AI วิเคราะห์เส้นทางประจำวัน:</span>
-              <span id="aiBannerStatus" class="text-xs font-medium text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md">สมดุลดีเยี่ยม</span>
+        <!-- 7-Day Clear Matrix Strip -->
+        <div class="day-strip-panel">
+          <div class="day-strip-header">
+            <div style="font-size:14px;font-weight:700;color:#fff;">
+              📅 เลือกวันที่ต้องการจัดทริป (2 พฤศจิกายน – 8 พฤศจิกายน) <span style="font-size:12px;font-weight:400;color:var(--text-muted);">— คลิกที่การ์ดเพื่อดูหรือแก้ไขสถานที่ในแต่ละวัน</span>
             </div>
-            <p id="aiBannerText" class="text-xs text-slate-600 leading-relaxed"></p>
-          </div>
-          <div class="shrink-0 flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-center">
-            <button type="button" onclick="setDayTransport('car')" id="btnModeCar" class="px-2.5 py-1 rounded-lg text-xs font-medium transition">🚗 Car GPS</button>
-            <button type="button" onclick="setDayTransport('train')" id="btnModeTrain" class="px-2.5 py-1 rounded-lg text-xs font-medium transition">🚆 Train</button>
-          </div>
-        </div>
-
-        <!-- Responsive Grid (2 Main Panes on Desktop, Toggled on Mobile) -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          
-          <!-- PANE A: LOCATION & RYOKAN & FISH MARKET CATALOG (6 Cols) -->
-          <div id="paneCatalog" class="lg:col-span-6 minimal-card rounded-2xl p-4 flex flex-col h-[640px]">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="font-semibold text-slate-800 text-sm md:text-base flex items-center gap-1.5">
-                <span data-i18n="catalogHeading">คลังสถานที่ ตลาดปลา & เรียวกัง</span>
-                <span class="text-xs text-slate-400 font-normal">(<span id="catalogCount">0</span>)</span>
-              </h3>
-              <button type="button" onclick="openAiWizardModal()" class="text-xs text-teal-700 hover:underline font-medium" data-i18n="askAiLink">
-                ✨ ให้ AI เลือกให้
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn-sm" style="border-color:var(--accent-amber);color:#fde047;" onclick="resetToDefaultPlan()">
+                ✨ โหลดทริปมาตรฐาน (ฮาโกเนะ-ฟูจิ-ชิซึโอกะ-คามาคูระ-อิบารากิ-อุเอโนะ)
               </button>
             </div>
+          </div>
+          <div class="day-cards-grid" id="dayCardsContainer"></div>
+        </div>
 
-            <!-- Filter Selects -->
-            <div class="grid grid-cols-2 gap-2 mb-2.5">
-              <select id="selZone" onchange="renderCatalog()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-slate-400">
-                <option value="ALL">🌏 ทุกโซน (All Zones)</option>
-                <option value="Fuji">🗻 ฟูจิ 5 ทะเลสาบ (Fuji Lakes)</option>
+        <!-- AI Route Guard & Transport Bar -->
+        <div class="ai-bar" id="aiBanner">
+          <div style="flex:1;min-width:260px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+              <span style="font-size:11px;font-weight:800;background:rgba(6,182,212,0.2);color:#67e8f9;padding:2px 8px;border-radius:99px;border:1px solid rgba(6,182,212,0.4);">
+                🤖 AI วิเคราะห์เส้นทางประจำวัน
+              </span>
+              <strong id="aiStatusTitle" style="font-size:13px;color:#34d399;">✓ เส้นทางสมดุลดีเยี่ยม</strong>
+            </div>
+            <div id="aiStatusDesc" style="font-size:12.5px;color:#e2e8f0;"></div>
+          </div>
+
+          <div class="trans-switch">
+            <span style="font-size:11.5px;color:var(--text-muted);padding-left:4px;">รูปแบบเดินทางวันนี้:</span>
+            <button type="button" id="btnModeCar" class="btn-trans active-car" onclick="changeTransportMode('car')">🚗 รถยนต์เช่า (ใช้เบอร์ GPS)</button>
+            <button type="button" id="btnModeTrain" class="btn-trans" onclick="changeTransportMode('train')">🚆 รถไฟ / พาส</button>
+          </div>
+        </div>
+
+        <!-- 3-Column Balanced Workspace -->
+        <div class="workspace-grid">
+          
+          <!-- COLUMN 1: MASTER DATABASE -->
+          <div class="panel-box">
+            <div class="panel-title-row">
+              <div class="panel-title">📍 1. คลังสถานที่ท่องเที่ยว & ร้านอาหาร (<span id="dbTotalCount">0</span>)</div>
+              <span style="font-size:11px;color:#fde047;">กด 📖 เพื่อเปิดหน้าต่างความรู้</span>
+            </div>
+
+            <div class="filter-row">
+              <select id="selZone" class="input-ctrl" onchange="renderDatabase()">
+                <option value="ALL">🌏 แสดงทุกโซน (All Zones)</option>
+                <option value="Fuji">🗻 รอบฟูจิ 5 ทะเลสาบ (Fuji)</option>
                 <option value="Shizuoka">🍵 ชิซุโอกะ & โกเท็มบะ (Shizuoka)</option>
                 <option value="Hakone">♨️ ฮาโกเนะ (Hakone)</option>
                 <option value="Kamakura">🌊 คามาคูระ & เอโนชิมะ (Kamakura)</option>
-                <option value="Ibaraki">⛩️ อิบารากิ (Ibaraki)</option>
+                <option value="Ibaraki">⛩️ อิบารากิ สายมู & ตลาดปลา (Ibaraki)</option>
                 <option value="Tokyo">🗼 โตเกียว & อุเอโนะ (Tokyo)</option>
                 <option value="Kawagoe">🏮 คาวาโกเอะ (Kawagoe)</option>
-                <option value="Hakuba">🏔️ ฮากุบะ นากาโนะ (Hakuba)</option>
               </select>
-              <select id="selCategory" onchange="renderCatalog()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-slate-400">
+              <select id="selCat" class="input-ctrl" onchange="renderDatabase()">
                 <option value="ALL">🏷️ ทุกหมวดหมู่ (All Categories)</option>
-                <option value="FishMarket">🐟 ตลาดปลา & ซีฟู้ด (Fish Markets)</option>
-                <option value="Ryokan">♨️ เรียวกัง & โรงแรมออนเซ็น (Ryokan/Onsen)</option>
-                <option value="Attraction">⛩️ ที่เที่ยว / ศาลเจ้า / วัด</option>
-                <option value="Nature">🍁 ธรรมชาติ & จุดชมวิวฟูจิ</option>
-                <option value="Restaurant">🍜 ร้านอาหาร & คาเฟ่แนะนำ</option>
-                <option value="Outlet">🛍️ ช้อปปิ้ง & เอาท์เล็ท</option>
+                <option value="Attraction">⛩️ ที่เที่ยว / วัด / ศาลเจ้า</option>
+                <option value="Nature">🍁 ธรรมชาติ / จุดชมวิวฟูจิ</option>
+                <option value="FoodMarket">🐟 ตลาดปลา / จุดพักรถ</option>
+                <option value="Restaurant">🍜 ร้านอาหาร / คาเฟ่</option>
+                <option value="Outlet">🛍️ ช้อปปิ้ง / เอาท์เล็ท</option>
+                <option value="Hotel">🏨 ที่พักวิวฟูจิ / โรงแรมออนเซ็น</option>
               </select>
             </div>
+            <input type="text" id="inpSearch" class="input-ctrl" style="margin-bottom:10px;" oninput="renderDatabase()" placeholder="🔍 พิมพ์ค้นหาชื่อสถานที่, ชิงช้า, สตาร์บัคส์, ตลาดปลา, เบอร์โทร GPS..."/>
 
-            <input type="text" id="inpSearch" oninput="renderCatalog()" placeholder="🔍 ค้นหาชื่อสถานที่, ตลาดปลา, เรียวกัง, เบอร์โทร GPS..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 mb-3 focus:outline-none focus:border-slate-400"/>
-
-            <!-- Catalog Items List -->
-            <div id="catalogListContainer" class="flex-1 overflow-y-auto space-y-2.5 pr-1"></div>
+            <div class="scroll-list" id="dbListContainer"></div>
           </div>
 
-          <!-- PANE B: SELECTED DAY ITINERARY & MAP (6 Cols) -->
-          <div id="paneItinerary" class="hidden lg:flex lg:col-span-6 flex-col gap-4 h-[640px]">
-            
-            <!-- Top Half: Day Schedule List -->
-            <div class="minimal-card rounded-2xl p-4 flex-1 flex flex-col overflow-hidden">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-2.5">
-                <div>
-                  <h3 id="activeDayHeader" class="font-semibold text-slate-800 text-sm md:text-base">Day 1 • วันที่ 2 พ.ย.</h3>
-                  <p id="activeDaySub" class="text-[11px] text-slate-400">คลิกที่ชื่อสถานที่เพื่ออ่านเกร็ดความรู้และข้อควรระวัง</p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button type="button" onclick="openAiWizardModal()" class="text-xs bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-lg font-medium">
-                    ✨ AI จัดให้
-                  </button>
-                  <button type="button" onclick="clearDayItems()" class="text-xs text-rose-600 hover:underline" data-i18n="btnClearDay">ล้างวันนี้</button>
-                </div>
+          <!-- COLUMN 2: SELECTED DAY PLAN -->
+          <div class="panel-box">
+            <div class="panel-title-row">
+              <div>
+                <div class="panel-title" id="activeDayHeaderTitle" style="color:#fde047;">🗓️ แผนวันที่ 2 พ.ย.</div>
+                <div id="activeDaySubTitle" style="font-size:11.5px;color:var(--text-muted);">เรียงลำดับสถานที่ตามเวลาเดินทาง</div>
               </div>
+              <button type="button" class="btn-sm" style="color:#fda4af;border-color:#881337;" onclick="clearDayItems()">ล้างวันนี้</button>
+            </div>
 
-              <!-- Day Items Scroll -->
-              <div id="dayScheduleContainer" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+            <div class="scroll-list" id="itinListContainer"></div>
 
-              <!-- Note & Save -->
-              <div class="pt-2.5 mt-2 border-t border-slate-100 flex items-center gap-2">
-                <input type="text" id="inpDayNote" oninput="saveNote(this.value)" placeholder="📝 บันทึกประจำวัน (เช่น เวลารับรถ, รหัสจอง)..." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700"/>
-                <button type="button" onclick="syncToGoogleSheet()" class="shrink-0 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium" data-i18n="btnSaveSheet">
-                  📊 บันทึก
-                </button>
+            <div style="border-top:1px solid var(--border-color);padding-top:10px;margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+              <input type="text" id="inpDayNote" class="input-ctrl" oninput="updateDayNote(this.value)" placeholder="📝 บันทึกประจำวัน (เช่น รับรถ 10:00 น., รหัสจองโรงแรม)..."/>
+              <button type="button" class="btn-add" style="background:var(--accent-emerald);padding:10px;font-size:13px;" onclick="syncToGoogleSheet()">
+                📊 บันทึกแผนการเดินทางลงเครื่อง & ซิงค์ Google Sheet
+              </button>
+            </div>
+          </div>
+
+          <!-- COLUMN 3: GOOGLE MAP & GOOGLE DRIVE VAULT -->
+          <div class="right-stack col-map">
+            <div class="map-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-size:13px;font-weight:700;color:var(--accent-cyan);">🗺️ Google Maps พิกัดจุดหมาย</span>
+                <a id="lnkExternalMap" href="https://www.google.com/maps" target="_blank" style="font-size:11px;color:var(--accent-pink);text-decoration:none;font-weight:600;">เปิดแอป Maps ↗</a>
+              </div>
+              <div id="lblActiveMapPlace" style="font-size:12px;color:#e2e8f0;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                พิกัด: ภูเขาไฟฟูจิ (Mount Fuji)
+              </div>
+              <div class="map-frame-wrap">
+                <iframe id="mapIframe" style="width:100%;height:100%;border:0;" loading="lazy" allowfullscreen src="https://maps.google.com/maps?q=Mount+Fuji+Japan&t=&z=11&ie=UTF8&iwloc=&output=embed"></iframe>
               </div>
             </div>
 
-            <!-- Bottom Half: Google Map & Photo Upload -->
-            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 h-52 shrink-0">
-              <div class="sm:col-span-7 minimal-card rounded-2xl p-2.5 flex flex-col">
-                <div class="flex items-center justify-between text-[11px] mb-1">
-                  <span id="mapActiveTitle" class="font-medium text-slate-700 truncate">🗺️ Mt. Fuji, Japan</span>
-                  <a id="mapExternalLink" href="https://www.google.com/maps" target="_blank" class="text-teal-700 hover:underline shrink-0">Maps ↗</a>
-                </div>
-                <div class="flex-1 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
-                  <iframe id="mapIframe" class="w-full h-full border-0" loading="lazy" allowfullscreen src="https://maps.google.com/maps?q=Mount+Fuji+Japan&t=&z=11&ie=UTF8&iwloc=&output=embed"></iframe>
-                </div>
+            <div class="vault-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:700;color:#fde047;">📁 Google Drive คลังรูปทริป</span>
+                <label class="btn-sm" style="background:var(--accent-pink);border:none;color:#fff;cursor:pointer;">
+                  + อัปโหลดรูป
+                  <input type="file" accept="image/*" style="display:none;" onchange="uploadPhoto(event)"/>
+                </label>
               </div>
-
-              <div class="sm:col-span-5 minimal-card rounded-2xl p-2.5 flex flex-col">
-                <div class="flex items-center justify-between mb-1">
-                  <span class="text-[11px] font-medium text-slate-700">📁 Google Drive Photos</span>
-                  <label class="cursor-pointer bg-slate-800 text-white text-[10px] px-2 py-0.5 rounded-lg">
-                    + รูปภาพ
-                    <input type="file" accept="image/*" class="hidden" onchange="uploadPhoto(event)"/>
-                  </label>
-                </div>
-                <div id="photoGrid" class="flex-1 overflow-y-auto grid grid-cols-2 gap-1.5 pt-1"></div>
-              </div>
+              <div id="lblDriveStatus" style="font-size:11px;color:var(--text-muted);margin-top:2px;">แนบรูปสถานที่/ตั๋วรถไฟประจำวันเก็บเข้า Drive</div>
+              <div class="photo-grid" id="photoGridContainer"></div>
             </div>
-
           </div>
 
         </div>
       </div>
 
-      <!-- TAB 2: FULL TRIP SUMMARY (Day 1 to Day 7) -->
-      <div id="tabContentSummary" class="hidden space-y-4">
-        <div class="minimal-card rounded-2xl p-4 md:p-6">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4 mb-5">
+      <!-- ==================== VIEW 2: FULL SUMMARY ==================== -->
+      <div id="viewSummary" style="display:none;">
+        <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:16px;padding:20px;">
+          <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--border-color);padding-bottom:14px;margin-bottom:16px;">
             <div>
-              <h2 class="text-lg md:text-xl font-semibold text-slate-800" data-i18n="summaryTitle">สรุปแผนการเดินทางทั้งทริป (อ้างอิงปฏิทิน & จำนวนวัน)</h2>
-              <p class="text-xs text-slate-500 mt-0.5" data-i18n="summarySub">ตารางสรุปรายวันพร้อมหมายเลขโทรศัพท์สำหรับป้อนใน GPS รถยนต์เช่า และคำแนะนำสำคัญ</p>
+              <h2 style="font-size:22px;font-weight:800;color:#fff;">📋 ตารางสรุปแผนการเดินทางทั้งทริป (วันที่ 2 – 8 พ.ย.)</h2>
+              <p style="font-size:12.5px;color:var(--text-muted);">พร้อมหมายเลขโทรศัพท์สำหรับป้อน GPS รถยนต์ (Car Navi) และเกร็ดความรู้/คำแนะนำจาก LM</p>
             </div>
-            <div class="flex items-center gap-2">
-              <button type="button" onclick="syncToGoogleSheet()" class="px-3 py-1.5 rounded-xl bg-teal-700 text-white text-xs font-medium">📊 Sync to Sheet</button>
-              <button type="button" onclick="window.print()" class="px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-medium">🖨️ Print / PDF</button>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="btn-add" style="background:var(--accent-emerald);" onclick="syncToGoogleSheet()">📊 ซิงค์เข้า Google Sheet</button>
+              <button type="button" class="btn-sm" onclick="downloadJsonBackup()">⬇️ โหลดไฟล์ JSON</button>
+              <button type="button" class="btn-add" onclick="window.print()">🖨️ พิมพ์ตารางทริป / Save PDF</button>
             </div>
           </div>
-          <div id="summaryDaysList" class="space-y-5"></div>
+          <div id="summaryContentBox" style="display:flex;flex-direction:column;gap:16px;"></div>
         </div>
       </div>
 
-      <!-- TAB 3: GOOGLE CLOUD & PING DIAGNOSTIC -->
-      <div id="tabContentCloud" class="hidden space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div class="minimal-card rounded-2xl p-5 space-y-3">
-            <div class="flex items-center justify-between">
-              <h3 class="font-semibold text-slate-800 text-base">📡 Google Ecosystem Ping Check</h3>
-              <button type="button" onclick="runAllPings()" class="px-3 py-1 bg-slate-800 text-white rounded-xl text-xs">Ping Now</button>
+      <!-- ==================== VIEW 3: CLOUD & PING CONFIG ==================== -->
+      <div id="viewCloud" style="display:none;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;">
+          
+          <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:16px;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <h3 style="font-size:16px;font-weight:700;color:var(--accent-cyan);">📡 ระบบตรวจสอบ Ping กับ Google</h3>
+              <button type="button" class="btn-add" style="background:var(--accent-cyan);color:#000;" onclick="runAllPings()">ยิง Ping ทดสอบทันที</button>
             </div>
-            <div id="pingConsoleBox" class="bg-slate-900 text-teal-300 font-mono text-xs p-3.5 rounded-xl h-56 overflow-y-auto space-y-1.5"></div>
+            <p style="font-size:12.5px;color:#cbd5e1;margin-bottom:12px;">
+              ตรวจสอบความหน่วง (Latency) ของ Google Maps, Google Sheets และ Google Drive เพื่อให้มั่นใจว่าระบบพร้อมใช้งาน
+            </p>
+            <div id="pingConsoleLog" style="background:#050811;border:1px solid var(--border-color);border-radius:10px;padding:12px;font-family:monospace;font-size:12px;color:#34d399;height:250px;overflow-y:auto;"></div>
           </div>
 
-          <div class="minimal-card rounded-2xl p-5 space-y-3">
-            <h3 class="font-semibold text-slate-800 text-base">🔗 ตั้งค่า Google Sheet & Google Drive</h3>
-            <p class="text-xs text-slate-500">วาง Web App URL จาก Google Apps Script เพื่อซิงค์ตารางทริปและอัปโหลดรูปภาพเข้า Google Drive</p>
-            <div class="space-y-2.5 text-xs">
+          <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:16px;padding:20px;">
+            <h3 style="font-size:16px;font-weight:700;color:#fde047;margin-bottom:8px;">🔗 ตั้งค่าเชื่อมต่อ Google Sheet & Google Drive</h3>
+            <p style="font-size:12.5px;color:#cbd5e1;margin-bottom:14px;">
+              วางลิงก์ <strong>Web App URL</strong> จากการ Deploy Google Apps Script เพื่อซิงค์ตารางทริปลง Sheet และอัปโหลดรูปเข้า Drive อัตโนมัติ
+            </p>
+            <div style="display:flex;flex-direction:column;gap:12px;">
               <div>
-                <label class="text-slate-600 block mb-1">Google Apps Script Web App URL:</label>
-                <input type="text" id="cfgGasUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800"/>
+                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">1. Google Apps Script Web App URL (ลงท้ายด้วย /exec):</label>
+                <input type="text" id="inpGasUrl" class="input-ctrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec"/>
               </div>
               <div>
-                <label class="text-slate-600 block mb-1">Google Drive Folder ID (เว้นว่างให้สร้างอัตโนมัติได้):</label>
-                <input type="text" id="cfgDriveFolder" placeholder="Folder ID..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800"/>
+                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">2. Google Drive Folder ID (เว้นว่างได้ ระบบจะสร้างโฟลเดอร์ให้อัตโนมัติ):</label>
+                <input type="text" id="inpDriveFolder" class="input-ctrl" placeholder="เช่น 1A2B3C4D5E6F7G8H9I0J..."/>
               </div>
-              <div class="flex gap-2 pt-1">
-                <button type="button" onclick="saveCloudSettings()" class="flex-1 py-2.5 bg-slate-800 text-white rounded-xl font-medium">💾 บันทึกตั้งค่า</button>
-                <button type="button" onclick="loadFromSheet()" class="flex-1 py-2.5 bg-teal-700 text-white rounded-xl font-medium">📥 โหลดจาก Sheet</button>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">
+                <button type="button" class="btn-add" onclick="saveCloudSettings()">💾 บันทึกตั้งค่า & ทดสอบ Ping</button>
+                <button type="button" class="btn-add" style="background:var(--accent-cyan);color:#000;" onclick="pullFromGoogleSheet()">📥 ดึงข้อมูลทริปจาก Sheet</button>
               </div>
             </div>
           </div>
+
         </div>
       </div>
 
     </main>
-
-    <!-- ==================== MOBILE BOTTOM NAVIGATION BAR ==================== -->
-    <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 grid grid-cols-4 py-1.5 px-2 text-[11px]">
-      <button type="button" onclick="switchTab('planner'); switchMobilePane('catalog');" class="flex flex-col items-center justify-center py-1 text-slate-700 font-medium">
-        <span>📍</span>
-        <span data-i18n="mobNavPlace">คลังที่เที่ยว</span>
-      </button>
-      <button type="button" onclick="switchTab('planner'); switchMobilePane('itinerary');" class="flex flex-col items-center justify-center py-1 text-slate-700 font-medium">
-        <span>🗓️</span>
-        <span data-i18n="mobNavDay">แผนรายวัน</span>
-      </button>
-      <button type="button" onclick=" openAiWizardModal();" class="flex flex-col items-center justify-center py-1 text-teal-700 font-semibold">
-        <span>✨</span>
-        <span data-i18n="mobNavAi">AI แนะนำ</span>
-      </button>
-      <button type="button" onclick="switchTab('summary');" class="flex flex-col items-center justify-center py-1 text-slate-700 font-medium">
-        <span>📋</span>
-        <span data-i18n="mobNavSum">สรุปทริป</span>
-      </button>
-    </nav>
-
   </div>
 
-  <!-- ==================== 3. SPECIAL POPUP: AI SMART DAY PLANNER WIZARD ==================== -->
-  <div id="aiWizardModal" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs items-center justify-center p-3 md:p-5 overflow-y-auto" onclick="closeAiWizardModal()">
-    <div class="minimal-card max-w-xl w-full rounded-3xl p-5 md:p-6 space-y-4 my-auto shadow-xl" onclick="event.stopPropagation()">
-      
-      <div class="flex items-start justify-between border-b border-slate-100 pb-3">
+  <!-- ==================== 3. POPUP MODAL (ความรู้และคำแนะนำจาก LM) ==================== -->
+  <div id="infoModal" onclick="closeModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;border-bottom:1px solid var(--border-color);padding-bottom:12px;">
         <div>
-          <span class="text-[11px] font-medium text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">AI Smart Day Planner</span>
-          <h3 class="text-lg font-semibold text-slate-800 mt-1" data-i18n="wizTitle">✨ ให้ AI แนะนำและจัดแผนท่องเที่ยวประจำวัน</h3>
+          <span id="mdlZone" class="zone-tag">ZONE</span>
+          <span id="mdlCat" class="cat-tag">Category</span>
+          <h3 id="mdlTitle" style="font-size:20px;font-weight:800;color:#fff;margin-top:4px;">ชื่อสถานที่</h3>
         </div>
-        <button type="button" onclick="closeAiWizardModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center">✕</button>
+        <button type="button" class="btn-sm" style="font-size:14px;padding:4px 10px;" onclick="closeModal()">✕ ปิด</button>
       </div>
 
-      <!-- Step 1: Select Target Day (Calendar Date + Day Number) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+      <div style="background:var(--bg-dark);padding:12px;border-radius:12px;border:1px solid var(--border-color);margin-top:12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;">
         <div>
-          <label class="text-slate-600 font-medium block mb-1" data-i18n="wizSelectDay">1. เลือกวันที่ต้องการบรรจุแผน:</label>
-          <select id="wizTargetDay" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-medium"></select>
+          <div style="font-size:12px;color:var(--text-muted);">📍 ที่อยู่: <span id="mdlAddr" style="color:#fff;"></span></div>
+          <div style="font-size:14px;font-family:monospace;font-weight:700;color:#fde047;margin-top:2px;">📞 เบอร์โทร GPS รถยนต์: <span id="mdlTel"></span></div>
         </div>
-        <div>
-          <label class="text-slate-600 font-medium block mb-1" data-i18n="wizSelectZone">2. เลือกโซนหลัก (หรือพิมพ์ค้นหาด้านล่าง):</label>
-          <select id="wizTargetZone" onchange="generateAiSuggestions()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800">
-            <option value="Fuji">🗻 รอบทะเลสาบฟูจิ + เรียวกังออนเซ็น</option>
-            <option value="Shizuoka">🍵 ชิซุโอกะ + สตาร์บัคส์ฟูจิ + ชิงช้า</option>
-            <option value="Hakone">♨️ ฮาโกเนะ + ล่องเรือโจรสลัด + ไข่ดำ</option>
-            <option value="Kamakura">🌊 คามาคูระ + รถไฟ Slam Dunk + เกาะแมว</option>
-            <option value="Ibaraki">⛩️ อิบารากิ สายมู + ตลาดปลานากะมินาโตะ</option>
-            <option value="Tokyo">🗼 โตเกียว + ตลาดปลาโทโยสุ + อุเอโนะ</option>
-            <option value="Kawagoe">🏮 เมืองเก่าคาวาโกเอะ Little Edo</option>
-            <option value="Hakuba">🏔️ ฮากุบะ สึไกเกะ ชมใบไม้เปลี่ยนสี</option>
-          </select>
+        <div style="display:flex;gap:6px;">
+          <button type="button" id="mdlBtnCopy" class="btn-sm btn-info">📋 คัดลอกเบอร์ GPS</button>
+          <button type="button" id="mdlBtnAdd" class="btn-add">+ เพิ่มเข้าวันนี้</button>
         </div>
       </div>
 
-      <!-- Step 2: Keyword / Interest Input -->
-      <div class="text-xs">
-        <label class="text-slate-600 font-medium block mb-1" data-i18n="wizPromptLabel">ระบุความสนใจพิเศษ (เช่น ตลาดปลา, เรียวกังวิวฟูจิ, ช้อปปิ้ง, ไหว้พระ):</label>
-        <div class="flex gap-2">
-          <input type="text" id="wizKeywordInput" oninput="generateAiSuggestions()" placeholder="พิมพ์คำค้น เช่น ตลาดปลา, เรียวกัง, ฟูจิ, เนื้อย่าง..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800"/>
-          <button type="button" onclick="generateAiSuggestions()" class="px-3.5 py-2 bg-slate-800 text-white rounded-xl font-medium shrink-0">วิเคราะห์</button>
-        </div>
+      <div class="info-section">
+        <div style="font-size:12px;font-weight:700;color:var(--accent-cyan);margin-bottom:4px;">✨ จุดเด่นและเรื่องราวที่น่าสนใจ (ข้อมูลจาก LM)</div>
+        <div id="mdlKnowledge" style="color:#f1f5f9;"></div>
       </div>
 
-      <!-- Step 3: Customizable AI Draft List (ติ๊กเลือก/ปรับแต่งได้ตามใจชอบ) -->
-      <div class="space-y-2">
-        <div class="flex items-center justify-between text-xs">
-          <span class="font-semibold text-slate-700" data-i18n="wizDraftHeader">3. รายการที่ AI แนะนำ (ติ๊กถูกเพื่อเลือก หรือกดเพิ่มสถานที่อื่นได้):</span>
-          <span id="wizSelectedCount" class="text-teal-700 font-medium">เลือก 0 จุด</span>
-        </div>
-        <div id="wizSuggestionsBox" class="max-h-60 overflow-y-auto space-y-2 bg-slate-50 p-3 rounded-2xl border border-slate-200"></div>
+      <div class="info-section tips">
+        <div style="font-size:12px;font-weight:700;color:#fde047;margin-bottom:4px;">💡 คำแนะนำ & ข้อควรระวังในการเดินทาง (Insider Tips)</div>
+        <div id="mdlTips" style="color:#fef3c7;"></div>
       </div>
 
-      <!-- Add extra item manually into AI draft -->
-      <div class="flex items-center gap-2 text-xs pt-1">
-        <select id="wizExtraPlaceSelect" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700"></select>
-        <button type="button" onclick="addExtraToWizardDraft()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-medium shrink-0">+ เพิ่มจุดนี้ร่วมด้วย</button>
-      </div>
-
-      <!-- Step 4: Confirm Button (OK บรรจุเข้าแผนวันนั้นๆ) -->
-      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-        <button type="button" onclick="closeAiWizardModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-medium">ยกเลิก</button>
-        <button type="button" onclick="applyAiWizardToDay()" class="px-5 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-600 text-white text-xs font-semibold shadow-sm">
-          ✅ OK บรรจุเป็นแผนท่องเที่ยวในวันนี้
-        </button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ==================== 4. PLACE KNOWLEDGE & TIPS POPUP MODAL ==================== -->
-  <div id="infoModal" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs items-center justify-center p-3 md:p-5 overflow-y-auto" onclick="closeInfoModal()">
-    <div class="minimal-card max-w-lg w-full rounded-3xl p-5 md:p-6 space-y-4 my-auto shadow-xl" onclick="event.stopPropagation()">
-      <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-        <div>
-          <div class="flex items-center gap-1.5">
-            <span id="modZone" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-white">Zone</span>
-            <span id="modCat" class="text-[11px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">Category</span>
-          </div>
-          <h3 id="modTitle" class="text-lg font-semibold text-slate-800 mt-1.5">Place Name</h3>
-        </div>
-        <button type="button" onclick="closeInfoModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center">✕</button>
-      </div>
-
-      <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div>
-          <div class="text-slate-500">📍 <span id="modAddr"></span></div>
-          <div class="font-mono font-semibold text-slate-800 mt-0.5">📞 GPS Tel: <span id="modTel" class="text-teal-700"></span></div>
-        </div>
-        <div class="flex gap-1.5">
-          <button type="button" id="modCopyBtn" class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium">คัดลอกเบอร์</button>
-          <button type="button" id="modAddBtn" class="px-3 py-1.5 bg-slate-800 text-white rounded-xl text-xs font-medium">+ เพิ่มเข้าวันนี้</button>
-        </div>
-      </div>
-
-      <div class="space-y-3 text-xs md:text-sm leading-relaxed">
-        <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
-          <div class="font-semibold text-slate-800 mb-1">📖 จุดเด่นและเกร็ดความรู้ (จากแหล่งข้อมูล LM):</div>
-          <p id="modStory" class="text-slate-600"></p>
-        </div>
-        <div class="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/80">
-          <div class="font-semibold text-amber-900 mb-1">💡 คำแนะนำ & ข้อควรระวัง:</div>
-          <p id="modTips" class="text-amber-800"></p>
-        </div>
+      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);padding:10px 14px;border-radius:10px;font-size:12px;">
+        <div><strong style="color:#34d399;">🕒 เวลาแนะนำ / การจอดรถ:</strong> <span id="mdlTime" style="color:#e2e8f0;"></span></div>
+        <a id="mdlMapLink" href="#" target="_blank" class="btn-sm btn-map" style="text-decoration:none;">🗺️ เปิด Google Maps ↗</a>
       </div>
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed bottom-16 md:bottom-5 right-4 z-50 hidden bg-slate-800 text-white px-4 py-2.5 rounded-2xl shadow-lg text-xs font-medium"></div>
+  <!-- Toast Banner -->
+  <div id="toastBanner"></div>
 
-  <!-- ==================== JAVASCRIPT MASTER ENGINE ==================== -->
+  <!-- ==================== 4. JAVASCRIPT ENGINE ==================== -->
   <script>
-    // =========================================================================
-    // 1. TRILINGUAL UI DICTIONARY (TH / EN / JP)
-    // =========================================================================
-    let currentLang = "th";
-    let fontScaleStep = 0; // -1 (13.5px), 0 (15px), 1 (16.5px), 2 (18px)
+    // 1. ฐานข้อมูลสถานที่ท่องเที่ยวครบทุกโซนพร้อมความรู้จาก LM
+    const MASTER_DB = [
+      // --- ฟูจิ 5 ทะเลสาบ (Fuji) ---
+      {
+        id: "FUJ-01", name: "สถานีรถไฟคาวากูจิโกะ (Kawaguchiko Station)", zone: "Fuji", category: "Attraction", tel: "0555-72-2214",
+        address: "3641 Funatsu, Fujikawaguchiko, Yamanashi",
+        highlight: "จุดเช็คอินถ่ายรูปคู่รถไฟโบราณสีน้ำตาลและตึก Lawson ฉากหลังภูเขาไฟฟูจิ",
+        knowledge: "ศูนย์รวมรถไฟและรถบัสท่องเที่ยวรอบทะเลสาบ (สายสีแดง สีเขียว สีน้ำเงิน) ข้างสถานีมีขบวนรถไฟโบราณสีน้ำตาลจอดให้ขึ้นบันไดไปถ่ายรูปคู่กับฉากหลังภูเขาไฟฟูจิ ด้านในสถานีมีร้านขายฟูจิยามะอุด้ง (เต้าหู้ปลารูปฟูจิ) และข้าวพันหมูย่างเสียบไม้",
+        tips: "ลานจอดรถของสถานีจอดฟรี 30 นาทีแรก (หากเกินคิด 200 เยน) แนะนำให้แวะถ่ายรูปไม่เกิน 28 นาทีจะไม่เสียเงิน และเดินไปถ่ายรูปร้าน Lawson วิวฟูจิใกล้กันได้เลย",
+        bestTime: "07:30 - 09:00 น. | จอดรถฟรี 30 นาทีแรก", mapQuery: "Kawaguchiko+Station"
+      },
+      {
+        id: "FUJ-02", name: "เจดีย์แดงชูเรโตะ (Chureito Pagoda)", zone: "Fuji", category: "Attraction", tel: "0555-23-2697",
+        address: "2-4-1 Asama, Fujiyoshida, Yamanashi",
+        highlight: "แลนด์มาร์กเจดีย์ 5 ชั้นสีแดงบนเนินเขาที่หันหน้าเข้าหาภูเขาไฟฟูจิ",
+        knowledge: "ตั้งอยู่ใกล้สถานี Shimoyoshida เป็นมุมโปสการ์ดระดับโลกที่เห็นเจดีย์สีแดงเคียงข้างภูเขาไฟฟูจิ บริเวณทางเดินปลูกทั้งต้นซากุระและต้นเมเปิ้ล ทำให้สวยทั้งฤดูใบไม้ผลิและใบไม้เปลี่ยนสี",
+        tips: "ต้องเดินขึ้นบันไดหินประมาณ 400 ขั้น (ราว 20-30 นาที) แนะนำให้มาช่วงเช้าตรู่เพราะแสงอาทิตย์จะส่องหน้าภูเขาไฟฟูจิพอดี ไม่ย้อนแสง",
+        bestTime: "07:00 - 09:30 น. | เข้าชมฟรีตลอด 24 ชม.", mapQuery: "Chureito+Pagoda"
+      },
+      {
+        id: "FUJ-03", name: "สวนโออิชิ พาร์ค (Oishi Park)", zone: "Fuji", category: "Nature", tel: "0555-76-8230",
+        address: "2585 Oishi, Fujikawaguchiko, Yamanashi",
+        highlight: "สวนดอกไม้ริมทะเลสาบคาวากูจิโกะ (ป้ายบัส 20) ชมวิวฟูจิเต็มตา",
+        knowledge: "สวนสาธารณะริมทะเลสาบคาวากูจิโกะฝั่งเหนือ มีทางเดินชมดอกไม้ยาว 350 เมตรที่มีดอกไม้กว่า 90 ชนิดหมุนเวียนตลอดปี เช่น ลาเวนเดอร์ในฤดูร้อน และพุ่มโคเชียสีแดงในฤดูใบไม้เปลี่ยนสี",
+        tips: "สามารถจอดรถที่ลานจอดฟรีแล้วเดินเล่นริมน้ำย้อนลงมาทางป้ายรถบัสหมายเลข 18-17 ได้ มีดอกหญ้าริมน้ำพริ้วไหวคู่กับวิวฟูจิที่สวยมาก เลี่ยงวันเสาร์บ่ายเพราะทัวร์ลงเยอะ",
+        bestTime: "08:00 - 10:30 น. หรือช่วงพระอาทิตย์ตก 16:00 น.", mapQuery: "Oishi+Park+Kawaguchiko"
+      },
+      {
+        id: "FUJ-04", name: "อุโมงค์ใบเมเปิ้ล (Momiji Corridor)", zone: "Fuji", category: "Nature", tel: "0555-72-3168",
+        address: "Kawaguchi, Fujikawaguchiko, Yamanashi",
+        highlight: "จุดชมใบไม้เปลี่ยนสีริมคลอง (ป้ายบัส 17-18) พร้อมงานออกร้านอาหารท้องถิ่น",
+        knowledge: "คลองสายเล็กๆ ที่ต้นเมเปิ้ลใหญ่สองฝั่งโน้มกิ่งเข้าหากันกลายเป็นอุโมงค์สีแดงส้มเหลืองในช่วงเดือนพฤศจิกายน มีการจัดงานเทศกาลออกร้านขายของกินร้อนๆ ยาวไปถึงป้ายรถบัสที่ 15",
+        tips: "เดินข้ามถนนมาฝั่งริมทะเลสาบคาวากูจิโกะตรงข้ามอุโมงค์ จะเจอลานริมน้ำที่มองเห็นภูเขาไฟฟูจิคู่กับต้นเมเปิ้ลได้แบบไม่มีคนบัง",
+        bestTime: "กลาง พ.ย. - ต้น ธ.ค. (เปิดไฟประดับช่วงค่ำ)", mapQuery: "Maple+Corridor+Kawaguchiko"
+      },
+      {
+        id: "FUJ-05", name: "หมู่บ้านน้ำใส โอชิโนะ ฮักไก (Oshino Hakkai)", zone: "Fuji", category: "Attraction", tel: "0555-84-4222",
+        address: "Shibokusa, Oshino, Yamanashi",
+        highlight: "บ่อน้ำใสบริสุทธิ์จากหิมะฟูจิละลายลึก 8 เมตร และสตรีทฟู้ดโมจิย่าง",
+        knowledge: "หมู่บ้านโบราณที่มีบ่อน้ำใส 8 บ่อเกิดจากหิมะบนฟูจิละลายไหลผ่านชั้นหินลาวาที่มีรูพรุน ทำให้น้ำใสจนมองเห็นก้นบ่อที่ลึกถึง 8 เมตร คนญี่ปุ่นเชื่อว่าดื่มน้ำศักดิ์สิทธิ์ที่นี่แล้วจะอายุยืนยาว",
+        tips: "หมู่บ้านเปิดให้เดินตั้งแต่ 08:00 น. ร้านค้าเปิด 09:00 น. ของกินห้ามพลาดคือ โมจิย่างไส้ถั่วแดงแป้งหนึบอุ่นๆ (150-200 เยน) ไดฟูกุสตรอว์เบอร์รีลูกโต (500 เยน) และปลาย่างเกลือสดๆ",
+        bestTime: "08:30 - 10:30 น. | ค่าจอดรถหยอดเหรียญ 300 เยน", mapQuery: "Oshino+Hakkai"
+      },
+      {
+        id: "FUJ-06", name: "สวนริมทะเลสาบยามานากาโกะ (Yamanakako Kirara)", zone: "Fuji", category: "Nature", tel: "0555-20-3111",
+        address: "479-2 Hirano, Yamanakako, Yamanashi",
+        highlight: "ลานชมวิวฟูจิเต็มลูกริมทะเลสาบยามานากาโกะ เงียบสงบไร้คนพลุกพล่าน",
+        knowledge: "ทะเลสาบยามานากาโกะเป็นทะเลสาบที่ใหญ่ที่สุดในบรรดา 5 ทะเลสาบ จุดชมวิว Kirara มีทางเดินไม้ริมน้ำที่มองเห็นภูเขาไฟฟูจิลูกใหญ่เต็มตาในบรรยากาศที่เงียบสงบมาก",
+        tips: "มีลานจอดรถติดริมน้ำ และในช่วงเดือนตุลาคมถึงต้นกุมภาพันธ์ ทะเลสาบนี้เป็นจุดชมปรากฏการณ์ Diamond Fuji (พระอาทิตย์ตรงยอดฟูจิพอดี)",
+        bestTime: "08:00 - 11:00 น.", mapQuery: "Yamanakako+Communication+Plaza+Kirara"
+      },
+      {
+        id: "FUJ-07", name: "หาดหงส์ ฮิราโนะ (Hirano Beach)", zone: "Fuji", category: "Nature", tel: "0555-62-1111",
+        address: "13 Hirano, Yamanakako, Yamanashi",
+        highlight: "ขับรถลงไปริมหาดถ่ายรูปคู่กับฝูงหงส์ขาวหน้าภูเขาไฟฟูจิ",
+        knowledge: "ห่างจากจุดชมวิว Kirara เพียง 2 นาที เป็นชายหาดริมทะเลสาบยามานากาโกะที่มีฝูงหงส์ขาวและนกเป็ดน้ำว่ายเข้ามาหาคนริมฝั่ง โดยมีฉากหลังเป็นภูเขาไฟฟูจิขนาดใหญ่",
+        tips: "สามารถขับรถลงไปจอดใกล้ชายหาดได้เลย อากาศริมน้ำช่วงเช้าหนาวจัดมาก (บางวัน 1 องศา) ควรเตรียมเสื้อกันลมและถุงมือให้พร้อม",
+        bestTime: "08:00 - 10:30 น.", mapQuery: "Hirano+Beach+Yamanakako"
+      },
+      {
+        id: "FUJ-08", name: "หมู่บ้านโบราณไซโกะ (Saiko Iyashi no Sato Nenba)", zone: "Fuji", category: "Attraction", tel: "0555-20-4677",
+        address: "2710 Saiko Nenba, Fujikawaguchiko, Yamanashi",
+        highlight: "หมู่บ้านหลังคามุงจากสไตล์ญี่ปุ่นโบราณ วิวภูเขาไฟฟูจิ",
+        knowledge: "ตั้งอยู่ใกล้ทะเลสาบไซโกะ เป็นหมู่บ้านโบราณที่เคยถูกดินถล่มในอดีตและได้รับการบูรณะขึ้นมาใหม่เป็นพิพิธภัณฑ์งานหัตถกรรม มีบริการเช่าชุดกิโมโนและชุดเกราะซามูไรถ่ายรูปคู่กับฟูจิ",
+        tips: "หมู่บ้านปิด 17:00 น. ควรมาถึงก่อน 16:00 น. ด้านหน้าหมู่บ้านมีร้านขนมวุ้นญี่ปุ่นราดซอสและไอศกรีมอร่อยมาก",
+        bestTime: "13:00 - 16:00 น.", mapQuery: "Saiko+Iyashi+no+Sato+Nenba"
+      },
+      {
+        id: "FUJ-09", name: "ทะเลสาบโชจิ (Lake Shoji)", zone: "Fuji", category: "Nature", tel: "0555-87-2311",
+        address: "Shoji, Fujikawaguchiko, Yamanashi",
+        highlight: "จุดขับรถลงริมหาดตั้งแคมป์และถ่ายภาพคู่กับฟูจิ",
+        knowledge: "ทะเลสาบขนาดเล็กที่มีทางลาดให้ขับรถลงไปจอดริมหาดหินเพื่อถ่ายรูปคู่กับภูเขาไฟฟูจิที่ซ้อนอยู่หลังภูเขาลูกเล็กด้านหน้า",
+        tips: "พกขาตั้งกล้องไปตั้งถ่ายรูปครอบครัวคู่กับรถเช่าและวิวฟูจิได้สวยมาก",
+        bestTime: "09:00 - 15:00 น.", mapQuery: "Lake+Shoji"
+      },
+      {
+        id: "FUJ-10", name: "ทะเลสาบโมโตซุ (Lake Motosu - วิวธนบัตร 1,000 เยน)", zone: "Fuji", category: "Nature", tel: "0555-87-2518",
+        address: "Motosu, Fujikawaguchiko, Yamanashi",
+        highlight: "มุมถ่ายภาพภูเขาไฟฟูจิต้นแบบด้านหลังธนบัตร 1,000 เยน",
+        knowledge: "จุดชมวิวริมทะเลสาบโมโตซุที่เป็นต้นแบบภาพภูเขาไฟฟูจิบนธนบัตร 1,000 เยนของญี่ปุ่น และใกล้กันยังมีสวนดอกไม้ Peter Rabbit English Garden อีกด้วย",
+        tips: "เตรียมธนบัตร 1,000 เยนมาวางทาบถ่ายรูปกับยอดฟูจิได้เลย",
+        bestTime: "09:00 - 14:30 น.", mapQuery: "Lake+Motosu+Observation+Point"
+      },
 
-    const I18N = {
-      th: {
-        appTitle: "FUJI HORIZON",
-        appSub: "ระบบวางแผนทริปญี่ปุ่นสไตล์มินิมอล พร้อมพิกัดเบอร์โทร GPS รถยนต์, ตลาดปลา, เรียวกังออนเซ็น และผู้ช่วย AI จัดทริปรายวัน",
-        pingStatus: "สถานะการเชื่อมต่อ Google",
-        btnEnter: "เข้าสู่ระบบวางแผนการเดินทาง →",
-        headerSub: "แผนเดินทางอ้างอิงปฏิทิน 2 – 8 พ.ย. (Day 1 – Day 7)",
-        btnAiWizard: "AI ช่วยจัดทริป",
-        navPlanner: "1. จัดแผนรายวัน & คลังสถานที่",
-        navSummary: "2. สรุปแผนทั้งทริป & เบอร์ GPS",
-        navCloud: "3. เชื่อมต่อ Google Sheet / Drive & Ping",
-        startDateLabel: "วันเริ่มเดินทาง:",
-        btnResetDefault: "↻ โหลดแผนตั้งต้น",
-        mobCatalog: "📍 เลือกสถานที่ท่องเที่ยว",
-        mobItinerary: "🗓️ แผนของวันนี้ & แผนที่",
-        aiBannerTitle: "🤖 AI วิเคราะห์เส้นทางประจำวัน:",
-        catalogHeading: "คลังสถานที่ ตลาดปลา & เรียวกัง",
-        askAiLink: "✨ ให้ AI เลือกให้",
-        btnClearDay: "ล้างวันนี้",
-        btnSaveSheet: "📊 บันทึก",
-        summaryTitle: "สรุปแผนการเดินทางทั้งทริป (อ้างอิงปฏิทิน & จำนวนวัน)",
-        summarySub: "ตารางสรุปรายวันพร้อมหมายเลขโทรศัพท์สำหรับป้อนใน GPS รถยนต์เช่า และคำแนะนำสำคัญ",
-        mobNavPlace: "คลังที่เที่ยว",
-        mobNavDay: "แผนรายวัน",
-        mobNavAi: "AI แนะนำ",
-        mobNavSum: "สรุปทริป",
-        wizTitle: "✨ ให้ AI แนะนำและจัดแผนท่องเที่ยวประจำวัน",
-        wizSelectDay: "1. เลือกวันที่ต้องการบรรจุแผน:",
-        wizSelectZone: "2. เลือกโซนหลักที่อยากไป:",
-        wizPromptLabel: "ระบุความสนใจพิเศษ (เช่น ตลาดปลา, เรียวกัง, ฟูจิ, ช้อปปิ้ง):",
-        wizDraftHeader: "3. รายการที่ AI แนะนำ (ปรับแต่งติ๊กเลือกได้ตามต้องการ):",
-        dayPrefix: "วันที่เที่ยวที่",
-        calPrefix: "ปฏิทิน"
+      // --- ชิซุโอกะ, ฟูจิโนะมิยะ และโกเท็มบะ (Shizuoka) ---
+      {
+        id: "SHZ-01", name: "ศาลเจ้าฟูจิซัง ฮงกู เซ็นเก็น ไทฉะ (Sengen Taisha)", zone: "Shizuoka", category: "Attraction", tel: "0544-27-2002",
+        address: "1-1 Miyacho, Fujinomiya, Shizuoka",
+        highlight: "ศาลเจ้าหลักมรดกโลกอายุพันปี บ่อน้ำศักดิ์สิทธิ์วากุตามะและสะพานแดงวิวฟูจิ",
+        knowledge: "ศาลเจ้าหลักที่สร้างขึ้นเพื่อบูชาเทพธิดาแห่งฟูจิและซากุระ ภายในมีบ่อน้ำศักดิ์สิทธิ์วากุตามะที่น้ำใสเย็นเจี๊ยบไหลมาจากหิมะละลายบนฟูจิ มีฝูงเป็ดว่ายน้ำ และสะพานสีแดงที่มีฉากหลังเป็นฟูจิ",
+        tips: "เดินข้ามสะพานสีแดงตรงต้นน้ำไปอีกฝั่ง แล้วหันกล้องซูมย้อนกลับมาจะได้ภาพสะพานแดงคู่กับภูเขาไฟฟูจิที่สวยที่สุด และเดินไปอีก 140 เมตรจะเจอตรอกยากิโซบะ Omiya Yokocho",
+        bestTime: "09:00 - 15:30 น. (มีลานจอดรถในศาลเจ้า)", mapQuery: "Fujisan+Hongu+Sengen+Taisha"
       },
-      en: {
-        appTitle: "FUJI HORIZON",
-        appSub: "Minimalist Japan Trip & Car GPS Planner featuring Fish Markets, Onsen Ryokans, and AI Daily Route Assistant.",
-        pingStatus: "Google Ecosystem Status",
-        btnEnter: "Enter Trip Planner →",
-        headerSub: "Calendar Itinerary: Nov 2 – Nov 8 (Day 1 – Day 7)",
-        btnAiWizard: "AI Day Wizard",
-        navPlanner: "1. Daily Planner & Catalog",
-        navSummary: "2. Full Itinerary & GPS Summary",
-        navCloud: "3. Google Sheet / Drive & Ping",
-        startDateLabel: "Start Date:",
-        btnResetDefault: "↻ Load Default Plan",
-        mobCatalog: "📍 Browse Places",
-        mobItinerary: "🗓️ Today's Plan & Map",
-        aiBannerTitle: "🤖 AI Daily Route Analysis:",
-        catalogHeading: "Attractions, Fish Markets & Ryokans",
-        askAiLink: "✨ Ask AI Wizard",
-        btnClearDay: "Clear Day",
-        btnSaveSheet: "📊 Save",
-        summaryTitle: "Full Trip Itinerary Summary (Calendar & Trip Days)",
-        summarySub: "Day-by-day schedule with Car GPS telephone numbers and insider tips.",
-        mobNavPlace: "Places",
-        mobNavDay: "Day Plan",
-        mobNavAi: "AI Wizard",
-        mobNavSum: "Summary",
-        wizTitle: "✨ AI Smart Day Itinerary Generator",
-        wizSelectDay: "1. Select Target Day:",
-        wizSelectZone: "2. Select Primary Zone:",
-        wizPromptLabel: "Filter by Interest (e.g., Fish Market, Ryokan, Fuji View):",
-        wizDraftHeader: "3. AI Recommended Stops (Customize before applying):",
-        dayPrefix: "Trip Day",
-        calPrefix: "Date"
+      {
+        id: "SHZ-02", name: "ศูนย์มรดกโลกภูเขาไฟฟูจิ (Mt. Fuji World Heritage Centre)", zone: "Shizuoka", category: "Attraction", tel: "0544-21-3776",
+        address: "5-12 Miyacho, Fujinomiya, Shizuoka",
+        highlight: "เสาโทริอิสีส้มยักษ์และอาคารไม้ทรงกรวยสะท้อนเงาบนผิวน้ำคู่กับฟูจิ",
+        knowledge: "ตั้งอยู่ใกล้ศาลเจ้า Sengen Taisha อาคารไม้ดีไซน์รูปกรวยฟูจิคว่ำที่เมื่อสะท้อนลงบนสระน้ำด้านหน้าจะกลายเป็นรูปภูเขาไฟฟูจิที่สมบูรณ์ เคียงข้างเสาโทริอิสีส้ม",
+        tips: "เดินเท้าเชื่อมจากศาลเจ้า Sengen Taisha และตรอก Omiya Yokocho ได้เลยภายใน 3 นาที",
+        bestTime: "09:00 - 16:30 น.", mapQuery: "Mt.+Fuji+World+Heritage+Centre+Shizuoka"
       },
-      jp: {
-        appTitle: "FUJI HORIZON (富士ホライズン)",
-        appSub: "魚市場・温泉旅館・カーナビ電話番号検索・AI旅程アシスタント搭載の日本旅行プランナー",
-        pingStatus: "Google接続ステータス",
-        btnEnter: "プランナーを開始する →",
-        headerSub: "旅程スケジュール: 11月2日〜11月8日 (Day 1 – Day 7)",
-        btnAiWizard: "AI日程作成",
-        navPlanner: "1. 日程作成＆スポット一覧",
-        navSummary: "2. 全日程まとめ＆カーナビ番号",
-        navCloud: "3. Google連携＆Ping確認",
-        startDateLabel: "出発日:",
-        btnResetDefault: "↻ おすすめ旅程を読込",
-        mobCatalog: "📍 スポット選択",
-        mobItinerary: "🗓️ 本日の予定＆地図",
-        aiBannerTitle: "🤖 AIルート診断:",
-        catalogHeading: "観光地・魚市場・温泉旅館一覧",
-        askAiLink: "✨ AIで自動作成",
-        btnClearDay: "クリア",
-        btnSaveSheet: "📊 保存",
-        summaryTitle: "全日程スケジュール＆カーナビ電話番号一覧",
-        summarySub: "カレンダー日付・旅行日数ごとの詳細ルートと現地アドバイス",
-        mobNavPlace: "スポット",
-        mobNavDay: "日程表",
-        mobNavAi: "AI提案",
-        mobNavSum: "全体まとめ",
-        wizTitle: "✨ AI
+      {
+        id: "SHZ-03", name: "มาไกโนะฟาร์ม (Makaino Farm - ชิงช้าวิวฟูจิ)", zone: "Shizuoka", category: "Attraction", tel: "0544-54-0342",
+        address: "1327-1 Utsuno, Fujinomiya, Shizuoka",
+        highlight: "นั่งชิงช้า Heidi’s Swing และเก้าอี้สูง Sky Counter ชมวิวฟูจิลูกโต",
+        knowledge: "ฟาร์มปศุสัตว์วิวฟูจิบนที่ราบสูงอาซากิริ ไฮไลท์คือการแกว่งชิงช้า Heidi’s Swing กลางทุ่ง และนั่งเก้าอี้ Sky Counter สูง 4 เมตรที่หันหน้าเข้าหาภูเขาไฟฟูจิ พร้อมกิจกรรมให้อาหารแกะ แพะ ตัวมารา และรีดนมวัว",
+        tips: "เวลาให้อาหารสัตว์ให้แบมือราบ (อย่ายื่นนิ้วเข้าไปเพราะสัตว์อาจงับนิ้วได้) และห้ามพลาดซอฟต์ครีมนมสดแท้ของฟาร์มที่เข้มข้นมาก",
+        bestTime: "09:30 - 15:30 น. (ช่วงเช้าฟ้าเปิดเห็นฟูจิชัดที่สุด)", mapQuery: "Makaino+Farm+Fujinomiya"
+      },
+      {
+        id: "SHZ-04", name: "ที่ราบสูงอาซากิริ (Asagiri Food Park)", zone: "Shizuoka", category: "FoodMarket", tel: "0544-29-5101",
+        address: "449-11 Nebara, Fujinomiya, Shizuoka",
+        highlight: "ศูนย์รวมอาหาร ขนม มันหวาน และโรงบ่มสาเกเชิงเขาฟูจิ",
+        knowledge: "พื้นที่ทางตะวันตกของเชิงเขาฟูจิที่ความสูง 700-1,000 เมตร เป็นฟู้ดพาร์คขนาดใหญ่ที่มีร้านอาหาร ร้านมันหวานญี่ปุ่น โรงบ่มสาเก และลานจอดรถชมใบไม้แดงวิวฟูจิ",
+        tips: "แวะพักรถทานไอศกรีมมันหวานและซื้อของฝากระหว่างขับรถจากคาวากูจิโกะลงมาชิซุโอกะได้สะดวกมาก",
+        bestTime: "09:30 - 16:30 น.", mapQuery: "Asagiri+Food+Park"
+      },
+      {
+        id: "SHZ-05", name: "วัดไทเซคิจิ (Taisekiji Temple)", zone: "Shizuoka", category: "Attraction", tel: "0544-58-0810",
+        address: "2057 Kamijo, Fujinomiya, Shizuoka",
+        highlight: "วัดใหญ่ศูนย์กลางนิกายนิจิเร็นโชชู ซุ้มประตูไม้อลังการพร้อมวิวฟูจิ",
+        knowledge: "วัดใหญ่ในเมืองฟูจิโนะมิยะที่สามารถมองเห็นวิวภูเขาไฟฟูจิได้จากทุกมุมของวัด มีซุ้มประตูไม้โบราณขนาดใหญ่อลังการและแนวต้นซากุระ",
+        tips: "ด้านในอาคารวิหารห้ามถ่ายภาพและวิดีโอ แต่บริเวณลานด้านนอกและซุ้มประตูสามารถถ่ายรูปคู่กับฟูจิได้เต็มที่",
+        bestTime: "09:00 - 16:00 น.", mapQuery: "Taisekiji+Temple+Fujinomiya"
+      },
+      {
+        id: "SHZ-06", name: "จุดชมวิวริมแม่น้ำอุรุอิ (Urui River)", zone: "Shizuoka", category: "Nature", tel: "0544-22-1168",
+        address: "Yamamiya, Fujinomiya, Shizuoka",
+        highlight: "ทางเดินเลียบแม่น้ำชมซากุระและภูเขาไฟฟูจิ",
+        knowledge: "จุดชมวิวริมแม่น้ำในเมืองฟูจิโนะมิยะที่เหล่าช่างภาพมืออาชีพนิยมมานั่งรอเก็บภาพภูเขาไฟฟูจิคู่กับแนวต้นซากุระ",
+        tips: "อยู่ใกล้กับสวน Fuji Central Park สามารถขับรถแวะชมวิวระหว่างทางในเมืองฟูจิโนะมิยะได้",
+        bestTime: "08:00 - 15:00 น.", mapQuery: "Urui+River+Fujinomiya"
+      },
+      {
+        id: "SHZ-07", name: "สะพานลอยฟูจิ (Fujisan Yumeno Ohashi)", zone: "Shizuoka", category: "Attraction", tel: "0545-55-2777",
+        address: "Tadehara, Fuji, Shizuoka",
+        highlight: "สะพานลอยคนเดินข้ามที่มีบันไดตรงกับยอดภูเขาไฟฟูจิพอดี",
+        knowledge: "สะพานลอยข้ามถนนในเมืองฟูจิ จังหวัดชิซุโอกะ ที่ออกแบบแนวบันไดตรงกับศูนย์กลางยอดภูเขาไฟฟูจิ กลายเป็นจุดถ่ายรูปยอดฮิต",
+        tips: "มีลานจอดรถฟรีใต้สะพาน แนะนำให้ไปช่วง 15:30 - 16:00 น. แสงยามเย็นสวยมาก และหากบันไดฝั่งซ้ายคิวยาว ให้เดินไปถ่ายที่บันไดอีกฝั่งซึ่งเห็นฟูจิชัดเจนเหมือนกันแต่ไม่ต้องรอคิว",
+        bestTime: "ช่วงเช้า หรือ 15:30 - 16:30 น.", mapQuery: "Fujisan+Yume+no+Ohashi"
+      },
+      {
+        id: "SHZ-08", name: "สถานี Gakunan-Fujioka (จุดชมชินคันเซ็นวิ่งผ่านฟูจิ)", zone: "Shizuoka", category: "Attraction", tel: "0545-34-0412",
+        address: "Fujioka, Fuji, Shizuoka",
+        highlight: "จุดถ่ายภาพรถไฟชินคันเซ็นวิ่งผ่านหน้าภูเขาไฟฟูจิในตำนาน",
+        knowledge: "จุดถ่ายรูปยอดฮิตที่เห็นรถไฟความเร็วสูงชินคันเซ็นวิ่งผ่านทุ่งหญ้าโดยมีภูเขาไฟฟูจิเป็นฉากหลัง รวมถึงได้เห็นรถไฟท้องถิ่นโบราณ 1 ตู้ของสาย Gakunan Railway",
+        tips: "คนขับรถมาสามารถแวะจอดริมถนนใกล้จุดชมวิวได้เลย (หากนั่งรถไฟมาต้องเดินจากสถานี Gakunan-Fujioka 20 นาที และตู้ขายตั๋วมีเมนูภาษาไทย ราคา 310 เยน)",
+        bestTime: "10:00 - 14:30 น.", mapQuery: "Gakunan-Fujioka+Station"
+      },
+      {
+        id: "SHZ-09", name: "สวนสันติภาพเฮวะ โกเท็มบะ (Heiwa Park)", zone: "Shizuoka", category: "Attraction", tel: "0550-82-0350",
+        address: "3422 Higashitanaka, Gotemba, Shizuoka",
+        highlight: "เจดีย์สีขาวทรงระฆังแบบอินเดียและจุดชมวิวฟูจิบนเนินเขาเมืองโกเท็มบะ",
+        knowledge: "ตั้งอยู่บนเนินเขาในเมืองโกเท็มบะ มีเจดีย์สีขาวที่บรรจุพระบรมสารีริกธาตุ พร้อมรูปปั้นสิงห์จากประเทศพุทธต่างๆ และเป็นจุดชมวิวฟูจิมุมสูงที่สวยงามมาก",
+        tips: "อยู่ห่างจาก Gotemba Premium Outlets เพียง 10 นาที แวะเที่ยวคู่กันในวันเดียวกันได้พอดี",
+        bestTime: "09:00 - 16:00 น.", mapQuery: "Heiwa+Park+Gotemba"
+      },
+
+      // --- ฮาโกเนะ (Hakone) ---
+      {
+        id: "HKN-01", name: "หุบเขาเดือดโอวาคุดานิ (Owakudani)", zone: "Hakone", category: "Nature", tel: "0460-84-8437",
+        address: "1251 Sengokuhara, Hakone, Kanagawa",
+        highlight: "นั่งกระเช้า Hakone Ropeway ชมบ่อกำมะถันเดือดและชิมไข่ดำ",
+        knowledge: "หุบเขาที่มีควันกำมะถันพุ่งจากบ่อออนเซ็นธรรมชาติ ไฮไลท์คือการชิม 'ไข่ดำ' บำรุงสุขภาพ และขณะนั่งกระเช้าลอยฟ้าจะเห็นตัวอักษรคันจิบนภูเขาและวิวฟูจิ",
+        tips: "หากเดินทางด้วยรถไฟจากชินจูกุ แนะนำให้ซื้อบัตร Hakone Free Pass (5,700 เยน) จะขึ้นกระเช้า รถไฟไต่เขา รถบัส และเรือโจรสลัดได้ฟรีทั้งหมด (ประหยัดไปกว่า 1,700 เยน)",
+        bestTime: "09:00 - 15:30 น.", mapQuery: "Owakudani+Hakone"
+      },
+      {
+        id: "HKN-02", name: "ทะเลสาบอาชิ & ศาลเจ้าฮาโกเนะ (Lake Ashi)", zone: "Hakone", category: "Attraction", tel: "0460-83-7123",
+        address: "80-1 Motohakone, Hakone, Kanagawa",
+        highlight: "ล่องเรือโจรสลัดชมทะเลสาบอาชิ วิวฟูจิ และเสาโทริอิสีแดงกลางน้ำ",
+        knowledge: "จุดล่องเรือโจรสลัดชมทิวทัศน์ทะเลสาบอาชิและภูเขาไฟฟูจิ พร้อมจุดถ่ายรูปเสาโทริอิสีแดงริมน้ำของศาลเจ้าฮาโกเนะ",
+        tips: "คิวถ่ายรูปที่เสาโทริอิริมน้ำค่อนข้างยาว แนะนำให้ไปช่วงเช้า หรือถ่ายจากมุมบนเรือโจรสลัดขณะล่องผ่าน",
+        bestTime: "08:30 - 15:30 น.", mapQuery: "Hakone+Shrine"
+      },
+      {
+        id: "HKN-03", name: "พิพิธภัณฑ์กลางแจ้งฮาโกเนะ (Hakone Open-Air Museum)", zone: "Hakone", category: "Attraction", tel: "0460-82-1161",
+        address: "1121 Ninotaira, Hakone, Kanagawa",
+        highlight: "ชมหอคอยสเตนกลาสบันไดเวียนสุดฮิต และโซน Picasso Pavilion",
+        knowledge: "พิพิธภัณฑ์ศิลปะท่ามกลางหุบเขา ไฮไลท์คือหอคอยกระจกสีสเตนกลาสที่มีบันไดเวียนตรงกลางสำหรับถ่ายภาพ และโซนจัดแสดงผลงานของ Picasso",
+        tips: "แสดงบัตร Hakone Free Pass ที่เคาน์เตอร์ได้รับส่วนลดค่าเข้าชมเพิ่มอีก 200 เยน",
+        bestTime: "09:30 - 16:00 น.", mapQuery: "Hakone+Open-Air+Museum"
+      },
+
+      // --- คามาคูระ และเกาะเอโนชิมะ (Kamakura) ---
+      {
+        id: "KMK-01", name: "วัดโคโตกุอิน - พระใหญ่ไดบุทสึ (Kotoku-in)", zone: "Kamakura", category: "Attraction", tel: "0467-22-0703",
+        address: "4-2-28 Hase, Kamakura, Kanagawa",
+        highlight: "สักการะองค์พระใหญ่สัมฤทธิ์กลางแจ้งสูง 11.3 เมตร สมบัติชาติญี่ปุ่น",
+        knowledge: "พระพุทธรูปสัมฤทธิ์กลางแจ้งองค์ใหญ่เป็นอันดับ 2 ของญี่ปุ่น (รองจากวัดโทไดจิ เมืองนารา) สร้างขึ้นตั้งแต่ปี ค.ศ. 1252 สูง 11.3 เมตร หนัก 121 ตัน",
+        tips: "หากนั่งรถไฟ JR จากอุเอโนะมาลงสถานี Kamakura (1 ชม.) ให้ซื้อบัตรรถราง Enoden One Day Pass (800 เยน) นั่งมาลงสถานี Hase แล้วเดินต่อ 500 เมตร แวะชิมคุกกี้และเครปเลมอนรูปพระใหญ่หน้าวัดได้",
+        bestTime: "08:30 - 16:30 น.", mapQuery: "Kotoku-in+Kamakura"
+      },
+      {
+        id: "KMK-02", name: "หาดทรายดำอินามุรางาซากิ (Inamuragasaki Beach)", zone: "Kamakura", category: "Nature", tel: "0467-23-3000",
+        address: "1-19 Inamuragasaki, Kamakura, Kanagawa",
+        highlight: "หาดทรายสีดำจากแร่เหล็ก มองเห็นวิวภูเขาไฟฟูจิและคาเฟ่ริมทะเล",
+        knowledge: "ชายหาดริมทะเลคามาคูระที่มีทรายสีดำสนิทเหมือนผงถ่านจากแร่เหล็กธรรมชาติ ลมแรงเหมาะกับการเล่นโต้คลื่นและมองเห็นวิวภูเขาไฟฟูจิ",
+        tips: "ลงรถรางสาย Enoden ที่สถานี Inamuragasaki แล้วเดินออกมาริมหาด มีคาเฟ่น่ารักๆ ให้นั่งจิบกาแฟชมวิวทะเล",
+        bestTime: "ช่วงบ่ายถึงเย็น", mapQuery: "Inamuragasaki+Park"
+      },
+      {
+        id: "KMK-03", name: "ทางรถไฟหน้าสถานี Kamakura-Kokomae (Slam Dunk)", zone: "Kamakura", category: "Attraction", tel: "0466-24-2715",
+        address: "1-1 Koshigoe, Kamakura, Kanagawa",
+        highlight: "จุดถ่ายรูปริมทางรถไฟสาย Enoden เลียบทะเล ฉากเปิดอนิเมะ Slam Dunk",
+        knowledge: "แรงบันดาลใจฉากเปิดอนิเมะดัง Slam Dunk ที่ซากุรางิยืนรอรถรางสาย Enoden แล่นผ่านจุดตัดทางรถไฟพร้อมฉากหลังเป็นท้องฟ้าและน้ำทะเล",
+        tips: "ห้ามลงไปยืนขวางบนถนนเด็ดขาด ให้ยืนถ่ายจากบนฟุตบาทช่วงที่ไม้กั้นรถไฟลงและไฟจราจรเป็นสีแดง",
+        bestTime: "09:00 - 16:00 น.", mapQuery: "Kamakurakokomae+Station"
+      },
+      {
+        id: "KMK-04", name: "เกาะเอโนชิมะ & ศาลเจ้าเอโนชิมะ (Enoshima Island)", zone: "Kamakura", category: "Attraction", tel: "0466-22-4020",
+        address: "2-3-8 Enoshima, Fujisawa, Kanagawa",
+        highlight: "เกาะแมวใกล้โตเกียว ไหว้เทพเบนไซเตง ทานปลาชิราซุและเซมเบ้ปลาหมึกยักษ์",
+        knowledge: "เกาะศักดิ์สิทธิ์ที่เชื่อมด้วยสะพานข้ามฝั่ง สร้างขึ้นตั้งแต่ปี ค.ศ. 552 บูชาเทพธิดาเบนไซเตงและมังกร 5 หัว มีทั้งบันไดเลื่อนขึ้นเขา (เสียเงิน) และบันไดเดินปกติฟรี",
+        tips: "ต้องลอง 'มารูยากิ ทาโกะ เซมเบ้' (500 เยน ข้าวเกรียบปลาหมึกทั้งตัวรีดทับแผ่นกรอบ) และข้าวหน้าปลาชิราซุสด ส่วนแมวบนเกาะมักหลบคนไปอยู่ตามซอกบ้านพักอาศัยด้านในเกาะ",
+        bestTime: "13:00 - 17:30 น.", mapQuery: "Enoshima+Shrine"
+      },
+
+      // --- จังหวัดอิบารากิ (Ibaraki) ---
+      {
+        id: "IBR-01", name: "พระใหญ่อุชิคุ ไดบุตสึ (Ushiku Daibutsu)", zone: "Ibaraki", category: "Attraction", tel: "029-889-2931",
+        address: "2083 Kunocho, Ushiku, Ibaraki",
+        highlight: "พระพุทธรูปทองสัมฤทธิ์ปางยืนสูง 120 เมตร บันทึกใน Guinness World Record",
+        knowledge: "พระพุทธรูปปางยืนสูง 120 เมตร ห่างจากโตเกียวประมาณ 1 ชั่วโมงเศษ สามารถขึ้นลิฟต์ไปชมวิวชั้น 5 บริเวณหน้าอกองค์พระ และชมห้องสวดมนต์ที่มีองค์พระจำลอง 3,400 องค์",
+        tips: "เป็นจุดแรกที่ควรแวะเมื่อขับรถจากโตเกียวเข้าสู่จังหวัดอิบารากิ",
+        bestTime: "09:30 - 16:00 น.", mapQuery: "Ushiku+Daibutsu"
+      },
+      {
+        id: "IBR-02", name: "จุดพักรถ Michi-no-Eki Joso (ร้านมันเผาโอ่งดิน)", zone: "Ibaraki", category: "FoodMarket", tel: "0297-38-7570",
+        address: "1708-1 Mukoishige, Joso, Ibaraki",
+        highlight: "ชิมข้าวด้งทะเล Teppen-don ชั้น 2 และมันเผาโอ่งดินเผา Tsubaki Oyaki Imo",
+        knowledge: "จุดพักรถขึ้นชื่อเรื่องมันหวานของจังหวัดอิบารากิ ใช้มันหวานสายพันธุ์ Beni Haruka เผาในโอ่งดินเผาจนหวานฉ่ำ และมีร้านอาหารทะเลสดที่ชั้น 2",
+        tips: "แนะนำให้แวะทานมื้อเที่ยงที่ชั้น 2 แล้วลงมาซื้อมันเผาทานต่อ",
+        bestTime: "10:00 - 16:00 น.", mapQuery: "Michi-no-Eki+Joso"
+      },
+      {
+        id: "IBR-03", name: "น้ำตกฟุคุโรดะ (Fukuroda Waterfall)", zone: "Ibaraki", category: "Nature", tel: "0295-72-4036",
+        address: "3-19 Fukuroda, Daigo, Ibaraki",
+        highlight: "1 ใน 3 น้ำตกที่สวยที่สุดในญี่ปุ่น น้ำตก 4 ชั้นสูง 120 เมตร",
+        knowledge: "น้ำตกขนาดใหญ่ 4 ชั้นสูง 120 เมตร มีอุโมงค์ทางเดินและลิฟต์ขึ้นไปชมวิวมุมสูง พร้อมสะพานแขวนด้านล่าง",
+        tips: "ควรไปถึงก่อน 15:30 น. ก่อนที่แสงอาทิตย์จะหมดเพราะอยู่ในหุบเขา",
+        bestTime: "09:00 - 15:30 น.", mapQuery: "Fukuroda+Falls"
+      },
+      {
+        id: "IBR-04", name: "ศาลเจ้าโฮชิ อิโมะ & ศาลเจ้าซาคาซึระ อิโซซากิ", zone: "Ibaraki", category: "Attraction", tel: "029-265-8220",
+        address: "4607-2 Isozakicho, Hitachinaka, Ibaraki",
+        highlight: "2 ศาลเจ้าสายมูขอพรโชคลาภการเงิน เสาโทริอิสีทองและเต่าหินถูกลอตเตอรี่",
+        knowledge: "ตั้งอยู่ใกล้กันในเมืองฮิตาชินากะ ศาลเจ้า Hoshi Imo มีเสาโทริอิสีทองอร่าม ส่วนศาลเจ้า Sakatsura Isosaki โด่งดังเรื่องคนมาขอพรแล้วถูกลอตเตอรี่รางวัลใหญ่",
+        tips: "เดินลอดอุโมงค์ต้นไม้แล้วถ่ายรูปตั้งเป็นวอลเปเปอร์มือถือตามเคล็ดลับคนญี่ปุ่น จากนั้นแวะไปซื้อลอตเตอรี่ที่ร้าน Ajiyoshi Chance Center (ห้าง Fashion Cruise) ต่อได้เลย",
+        bestTime: "09:00 - 16:00 น.", mapQuery: "Sakatsura+Isosaki+Shrine"
+      },
+      {
+        id: "IBR-05", name: "ศาลเจ้าโออาไร อิโซซากิ & ศาลเจ้าคาซามะ อินาริ", zone: "Ibaraki", category: "Attraction", tel: "029-267-2637",
+        address: "6890 Isohamacho, Oarai, Ibaraki",
+        highlight: "ชมเสาโทริอิบนโขดหินริมทะเล และชิมไอศกรีมเกาลัดหน้าศาลเจ้าอินาริ",
+        knowledge: "ศาลเจ้า Oarai มีเสาโทริอิ Kami-iso-no-Torii ตั้งอยู่บนโขดหินริมทะเล ส่วนศาลเจ้า Kasama Inari เป็น 1 ใน 3 ศาลเจ้าอินาริที่ใหญ่ที่สุดในญี่ปุ่น",
+        tips: "ที่ถนนคนเดินหน้าศาลเจ้า Kasama Inari ต้องลองไอศกรีมท็อปด้วยเกาลัดบดเป็นเส้น (Mont Blanc) และอินาริซูชิผสมเห็ดและผัก",
+        bestTime: "09:00 - 16:30 น.", mapQuery: "Oarai+Isosaki+Shrine"
+      },
+      {
+        id: "IBR-06", name: "สวนฮิตาชิ ซีไซด์ & ตลาดปลานากะมินาโตะ", zone: "Ibaraki", category: "FoodMarket", tel: "029-275-1335",
+        address: "5-5036-2 Kaimonocho, Hitachinaka, Ibaraki",
+        highlight: "ชมสวนดอกไม้ 4 ฤดูริมทะเล และทานข้าวด้งทูน่า/หอยนางรมสดที่ตลาดปลา",
+        knowledge: "Hitachi Seaside Park มีทุ่งโคเชียสีแดงในฤดูใบไม้ร่วง ส่วนตลาดปลา Nakaminato อยู่ใกล้กัน เป็นตลาดปลาที่ใหญ่ที่สุดของจังหวัด",
+        tips: "ที่ตลาดปลานากะมินาโตะ ถ้าร้านซูชิสายพานชั้น 1 คิวยาว ให้เดินขึ้นชั้น 2 จะมีร้านข้าวด้งทะเลที่โต๊ะเยอะกว่า และมีหอยนางรมสดแกะให้ทานหน้าร้านเลย",
+        bestTime: "09:30 - 15:00 น.", mapQuery: "Nakaminato+Fish+Market"
+      },
+
+      // --- โตเกียว และคาวาโกเอะ (Tokyo & Kawagoe) ---
+      {
+        id: "TYO-01", name: "ย่านอุเอโนะ & ตลาดอาเมโยโกะ (Ueno Ameyoko)", zone: "Tokyo", category: "Outlet", tel: "03-3832-5053",
+        address: "4-7 Ueno, Taito-ku, Tokyo",
+        highlight: "แหล่งช้อปปิ้งของฝาก ขนม ผลไม้สด รองเท้า และจุดขึ้นรถไฟ Skyliner ไปสนามบิน",
+        knowledge: "ตลาดคนเดินคึกคักติดสถานี Ueno และ Keisei Ueno สะดวกที่สุดสำหรับการพักผ่อนและช้อปปิ้งก่อนวันเดินทางกลับ",
+        tips: "วันกลับ (วันที่ 8 ต้องถึงนาริตะ 13:00 น.) ให้ขึ้นรถไฟด่วน Keisei Skyliner จากสถานี Keisei Ueno หรือ Nippori ใช้เวลาวิ่งเพียง 41 นาทีถึงสนามบินนาริตะ Terminal 2",
+        bestTime: "10:30 - 20:30 น.", mapQuery: "Ameyoko+Market+Ueno"
+      },
+      {
+        id: "TYO-02", name: "ตลาดปลาโทโยสุ โซนใหม่ (Toyosu Senkyaku Banrai)", zone: "Tokyo", category: "FoodMarket", tel: "03-3533-1515",
+        address: "6-5-1 Toyosu, Koto-ku, Tokyo",
+        highlight: "ถนนคนเดินสไตล์เอโดะหน้าตลาดปลาโทโยสุ รวมซูชิ ไข่หวานย่าง และขนมหวาน",
+        knowledge: "แหล่งท่องเที่ยวและของกินโซนใหม่ที่สร้างเป็นเมืองจำลองยุคเอโดะ ข้างตลาดประมูลปลาโทโยสุ",
+        tips: "ของกินแนะนำจาก LM: ไข่หวานย่างร้อนๆ 300 เยน, โอนิกิริทูน่าสดอะโวคาโด, ทาโกยากิ Gindaco, ข้าวปั้นเต้าหู้หวานท็อปแซลมอนดอง และมองบลังก์ชาเขียว",
+        bestTime: "10:00 - 15:00 น.", mapQuery: "Toyosu+Senkyaku+Banrai"
+      },
+      {
+        id: "TYO-03", name: "ย่านอากิฮาบาระ (Akihabara Electric Town)", zone: "Tokyo", category: "Outlet", tel: "03-5209-1010",
+        address: "1-1 Kanda Hanaokacho, Chiyoda-ku, Tokyo",
+        highlight: "ศูนย์รวมเครื่องใช้ไฟฟ้า แก็ดเจ็ต โมเดล ฟิกเกอร์ และอนิเมะ",
+        knowledge: "ย่านเครื่องใช้ไฟฟ้าและอนิเมะระดับโลก มีตึก Yodobashi Akiba และ Radio Kaikan อยู่ห่างจากสถานี Ueno เพียง 2 สถานีรถไฟ JR",
+        tips: "สามารถเดินเล่นจากตลาดอาเมโยโกะ (อุเอโนะ) เลียบทางรถไฟมายังอากิฮาบาระได้ในเวลา 12-15 นาที",
+        bestTime: "10:30 - 21:00 น.", mapQuery: "Akihabara+Station"
+      },
+      {
+        id: "TYO-04", name: "ถนนสายต้นแปะก๊วย เมจิจิงกู ไกเอน (Meiji Jingu Gaien)", zone: "Tokyo", category: "Nature", tel: "03-3401-0312",
+        address: "1-1 Kasumigaokamachi, Shinjuku-ku, Tokyo",
+        highlight: "อุโมงค์ต้นแปะก๊วยสีเหลืองทองอร่ามใจกลางเมือง พร้อมไฟประดับยามเย็น",
+        knowledge: "จุดชมใบแปะก๊วยเปลี่ยนสีที่สวยที่สุดในโตเกียว ต้นแปะก๊วยใบใหญ่เรียงรายสองฝั่งถนนกลายเป็นสีเหลืองทอง",
+        tips: "นั่งรถไฟใต้ดินสาย Ginza Line ลงสถานี Aoyama-itchome (G04) ทางออก 5 จะเป็นฝั่งที่เดินใกล้ที่สุด จากนั้นนั่งสาย Ginza Line ต่ออีก 3 สถานีไปเที่ยวห้าแยกชิบูย่าต่อได้เลย",
+        bestTime: "15:00 - 18:00 น.", mapQuery: "Meiji+Jingu+Gaien+Ginkgo+Avenue"
+      },
+      {
+        id: "TYO-05", name: "สถานีโตเกียว & โตเกียวทาวเวอร์ (Tokyo Station & Shiba Park)", zone: "Tokyo", category: "Attraction", tel: "03-3210-0077",
+        address: "1-9-1 Marunouchi, Chiyoda-ku, Tokyo",
+        highlight: "ช้อปปิ้งโซน Character Street ชั้นใต้ดินสถานีโตเกียว และถ่ายรูปโตเกียวทาวเวอร์",
+        knowledge: "ชั้นใต้ดินของสถานีโตเกียวเป็นแหล่งรวมช้อปการ์ตูนลิขสิทธิ์แท้ (Ghibli, Mickey, Snoopy, ชินจัง) เปิด 10:00 น. ส่วนสวน Shiba Park เป็นจุดจอดรถแวะถ่ายรูปคู่กับ Tokyo Tower",
+        tips: "เหมาะมากสำหรับแวะในวันที่ฝนตกหรือวันสุดท้ายก่อนนำรถเช่าไปคืน",
+        bestTime: "10:00 - 18:00 น.", mapQuery: "Tokyo+Station+Character+Street"
+      },
+      {
+        id: "TYO-06", name: "จุดพักรถกลางอ่าวโตเกียว อุมิโฮตารุ (Umihotaru PA)", zone: "Tokyo", category: "FoodMarket", tel: "0438-41-7401",
+        address: "Nakajima, Kisarazu, Chiba",
+        highlight: "จุดพักรถบนเกาะเทียมกลางทะเลแห่งเดียวในโลก ชมวิวอ่าวโตเกียว 360 องศา",
+        knowledge: "ตั้งอยู่บนทางด่วน Tokyo Bay Aqua-Line เชื่อมจังหวัดชิบะและคานางาวะ อาคาร 5 ชั้นมีทั้งร้านค้า เกมเซ็นเตอร์คีบตุ๊กตา และจุดชมวิวชั้น 5",
+        tips: "ช่วยย่นเวลาขับรถจากฝั่งนาริตะ/ชิบะไปยังคามาคูระและฮาโกเน่จาก 90 นาทีเหลือเพียง 15 นาทีโดยไม่ต้องผ่ารถติดในโตเกียว",
+        bestTime: "แวะพักรถระหว่างทาง 45 - 60 นาที", mapQuery: "Umihotaru+Parking+Area"
+      },
+      {
+        id: "KWG-01", name: "เมืองเก่าคาวาโกเอะ (Kawagoe Little Edo)", zone: "Kawagoe", category: "Attraction", tel: "049-224-0589",
+        address: "2-11-3 Miyashitamachi, Kawagoe, Saitama",
+        highlight: "ชมบ้านเรือนยุคเอโดะ ศาลเจ้าฮิคาว่า ถนนขนมโบราณ และ Starbucks เรือนไม้",
+        knowledge: "เมืองเก่าฉายา Little Edo มีศาลเจ้าคาวาโกเอะฮิคาว่า ถนนขนมโบราณ Candy Street และร้าน Starbucks ดีไซน์บ้านไม้โบราณ",
+        tips: "จากสถานี Kawagoe ขึ้นรถบัสสายสีน้ำเงินหมายเลข 6 ที่ชานชาลา 7 (นั่ง 15 นาที) ไปลงศาลเจ้าฮิคาว่า แล้วเดินย้อนเข้าถนนคนเดิน ชิมทาโกะเซ็นและมันฉาบ",
+        bestTime: "09:30 - 16:30 น.", mapQuery: "Kawagoe+Hikawa+Shrine"
+      },
+
+      // --- เอาท์เล็ท, ที่พักออนเซ็น และร้านอาหารแนะนำ ---
+      {
+        id: "OUT-01", name: "โกเท็มบะ พรีเมียม เอาท์เล็ท (Gotemba Premium Outlets)", zone: "Shizuoka", category: "Outlet", tel: "0550-81-3122",
+        address: "1312 Fukasawa, Gotemba, Shizuoka",
+        highlight: "เอาท์เล็ทขนาดใหญ่ที่สุดใกล้ภูเขาไฟฟูจิ พร้อมโรงแรมออนเซ็นติดเอาท์เล็ท",
+        knowledge: "แหล่งช้อปปิ้งแบรนด์เนมวิวฟูจิ และมีโรงแรม Fuji Outlet Hot Spring Gotemba ที่เปิดน้ำแร่ออนเซ็นแช่ในห้องพักได้ พร้อมบุฟเฟต์ขาปูทาราบะและซูไว",
+        tips: "แวะช้อปปิ้งก่อนขับรถขึ้นทางด่วนกลับเข้าโตเกียวได้สะดวกมาก",
+        bestTime: "10:00 - 19:00 น.", mapQuery: "Gotemba+Premium+Outlets"
+      },
+      {
+        id: "HTL-01", name: "ที่พัก Lake Villa Kawaguchiko (บ้านพักออนเซ็นวิวฟูจิ)", zone: "Fuji", category: "Hotel", tel: "0555-76-8550",
+        address: "1799 Kawaguchi, Fujikawaguchiko, Yamanashi",
+        highlight: "บ้านพักแยกเป็นหลังติดทะเลสาบคาวากูจิโกะ เห็นฟูจิจากลานจอดรถ มีบ่อออนเซ็น",
+        knowledge: "บ้านพักตากอากาศเงียบสงบ ห่างจาก Oishi Park 6 นาที เดินไปทะเลสาบ 5 นาที มีบ่อออนเซ็นส่วนกลางที่ตอนเช้าแช่น้ำไปชมวิวคุณลุงฟูจิไปได้",
+        tips: "เจ้าของที่พักดูแลดีมาก อธิบายละเอียด ออนเซ็นเปิด 15:00-22:00 น. และช่วงเช้า 06:00-09:30 น.",
+        bestTime: "เช็คอิน 15:00 น.", mapQuery: "Lake+Villa+Kawaguchiko"
+      },
+      {
+        id: "HTL-02", name: "โรงแรม APA Hotel TKP Nippori / Dormy Inn Ueno", zone: "Tokyo", category: "Hotel", tel: "03-5807-5489",
+        address: "6-7-22 Ueno, Taito-ku, Tokyo",
+        highlight: "ที่พักย่านอุเอโนะ/นิโปริ มีออนเซ็น ใกล้ตลาดอาเมโยโกะและรถไฟ Skyliner ไปสนามบิน",
+        knowledge: "เดินทางจากสนามบินนาริตะด้วยรถไฟ Keisei Skyliner ต่อเดียวถึง ไม่ต้องเปลี่ยนสาย เดินจากทางออกสถานีเพียง 3 นาที",
+        tips: "วันแรกหรือวันกลับสามารถฝากกระเป๋าไว้ที่โรงแรมก่อนออกไปเดินหาของกินแถวตลาดอาเมโยโกะได้เลย",
+        bestTime: "ที่พักหลักในโตเกียว", mapQuery: "Dormy+Inn+Ueno+Okachimachi"
+      },
+      {
+        id: "RES-01", name: "Starbucks Coffee จุดพักรถ Fujikawa SA (ชิซุโอกะ)", zone: "Shizuoka", category: "Restaurant", tel: "0545-56-2277",
+        address: "1348-3 Iwabuchi, Fuji, Shizuoka",
+        highlight: "สตาร์บัคส์บนจุดพักรถทางด่วนมุ่งหน้าชิซุโอกะ มีวิวภูเขาไฟฟูจิอยู่ด้านหลังร้าน",
+        knowledge: "สาขาจุดพักรถบนทางด่วนก่อนลงไปชิซุโอกะ ด้านในและระเบียงหลังร้านมองเห็นวิวภูเขาไฟฟูจิฝั่งใต้คู่กับสะพานข้ามแม่น้ำ",
+        tips: "ปักหมุดเบอร์โทรนี้ใน GPS รถยนต์เพื่อแวะจิบกาแฟเติมพลังระหว่างทางไปฟูจิโนะมิยะได้เลย",
+        bestTime: "08:00 - 16:30 น.", mapQuery: "Starbucks+Fujikawa+Service+Area"
+      },
+      {
+        id: "RES-02", name: "ตรอกยากิโซบะ Omiya Yokocho (ฟูจิโนะมิยะ)", zone: "Shizuoka", category: "Restaurant", tel: "0544-25-2061",
+        address: "4-23 Miyacho, Fujinomiya, Shizuoka",
+        highlight: "รวมร้านยากิโซบะฟูจิโนะมิยะต้นตำรับ ห่างจากศาลเจ้า Sengen เพียง 140 เมตร",
+        knowledge: "ตรอกรวมร้านยากิโซบะและอาหารท้องถิ่นหน้าศาลเจ้า Sengen Taisha มีทั้งสูตรคลาสสิกและสูตรเผ็ดพริกแดง",
+        tips: "เดินจากหน้าศาลเจ้าเพียง 140 เมตร ทานมื้อเที่ยงที่นี่แล้วเดินชมคลองน้ำใสต่อได้ทันที",
+        bestTime: "11:00 - 15:00 น.", mapQuery: "Omiya+Yokocho+Fujinomiya"
+      },
+      {
+        id: "RES-03", name: "ร้านเทมปุระ Fuji Tempura Idaten (คาวากูจิโกะ)", zone: "Fuji", category: "Restaurant", tel: "0555-73-9218",
+        address: "3486-4 Funatsu, Fujikawaguchiko, Yamanashi",
+        highlight: "ร้านเทมปุระเจ้าดังใกล้สถานีคาวากูจิโกะ ข้าวหน้าเทมปุระกุ้งและปลาไหลชามยักษ์",
+        knowledge: "เสิร์ฟข้าวหน้าเทมปุระกุ้งตัวโตและปลาไหลชิ้นใหญ่กว่าหน้า แป้งทอดบางกรอบไม่อมน้ำมัน ทานคู่กับอุด้งร้อนเส้นเหนียวนุ่ม",
+        tips: "ปริมาณแต่ละชามใหญ่มาก และมีลานจอดรถหน้าร้านสำหรับคนขับรถเช่า",
+        bestTime: "11:00 - 21:00 น.", mapQuery: "Fuji+Tempura+Idaten"
+      },
+      {
+        id: "RES-04", name: "ร้านซูชิสายพานหน้าล้น Miura Misaki Port Ueno", zone: "Tokyo", category: "Restaurant", tel: "03-5807-6023",
+        address: "6-12-14 Ueno, Taito-ku, Tokyo",
+        highlight: "ซูชิสายพานหน้าล้นย่านอุเอโนะ ใกล้ตลาดอาเมโยโกะ ทาน 2 คนอิ่มจุกไม่ถึงพันบาท",
+        knowledge: "ร้านซูชิสายพานรีวิวกว่า 4,000 คน ปลาสดชิ้นใหญ่ล้นคำ คิดราคาตามสีจาน ทาน 12 จานจ่ายไปเพียง 4,356 เยน",
+        tips: "อยู่ติดตลาดอาเมโยโกะ ทานเสร็จเดินย่อยช้อปปิ้งในตลาดต่อได้เลย",
+        bestTime: "11:00 - 21:00 น.", mapQuery: "Miura+Misaki+Kou+Ueno"
+      },
+      {
+        id: "RES-05", name: "ร้านเนื้อทอดกิวคัตสึ Gyukatsu Motomura & เนื้อย่าง Gyu-Kaku", zone: "Tokyo", category: "Restaurant", tel: "03-3356-4129",
+        address: "Shinjuku / Shibuya / Ueno, Tokyo",
+        highlight: "เนื้อทอดย่างเตาหินร้อนๆ (ชั้น B2F) และบุฟเฟต์เนื้อย่างยากินิคุสุดคุ้ม",
+        knowledge: "Gyukatsu Motomura เป็นร้านเนื้อชุบแป้งทอดย่างเตาหินที่มีรีวิวกว่า 6,000 รีวิว ส่วน Gyu-Kaku เป็นร้านบุฟเฟต์เนื้อย่าง (แพ็กเกจประมาณ 3,938 เยน)",
+        tips: "ที่สาขาชินจูกุ ระวังเข้าผิดร้านที่อยู่ริมถนน! ร้าน Gyukatsu Motomura ของแท้ต้องเดินลงบันไดไปชั้นใต้ดิน B2F (ลงไป 2 ชั้น)",
+        bestTime: "11:30 - 22:00 น.", mapQuery: "Gyukatsu+Motomura+Ueno"
+      },
+      {
+        id: "RES-06", name: "ร้านโซบะ 24 ชั่วโมง Ichiyoshi Soba & เทนยะ เทมปุระ", zone: "Tokyo", category: "Restaurant", tel: "03-3806-6669",
+        address: "5-50-11 Higashinippori, Arakawa-ku, Tokyo",
+        highlight: "โซบะร้อนเปิด 24 ชม. หน้าสถานี Nippori ที่พึ่งมื้อเช้าตรู่ก่อนออกเดินทาง",
+        knowledge: "ร้านอาหารญี่ปุ่นส่วนใหญ่เปิด 11:00 น. แต่ร้าน Ichiyoshi Soba เปิดตลอด 24 ชม. น้ำซุปหอมอร่อย",
+        tips: "แนะนำให้ถ่ายรูปเมนูหน้าร้านแล้วชี้ให้คุณป้าดูตอนสั่งเพื่อความแม่นยำ",
+        bestTime: "เปิด 24 ชั่วโมง (เหมาะทานมื้อเช้า 07:00 - 09:00 น.)", mapQuery: "Ichiyoshi+Soba+Nippori"
+      }
+    ];
+
+    // 2. ข้อมูลโครงสร้างทั้ง 7 วัน (วันที่ 2 - 8 พ.ย.) แสดงชัดเจน
+    const DAYS_CONFIG = [
+      { key: "day2", dateStr: "2 พ.ย.", dayNum: "DAY 1", routeTitle: "ถึงนาริตะ 10:00 ➔ คามาคูระ ➔ ฮาโกเนะ", defaultTrans: "car" },
+      { key: "day3", dateStr: "3 พ.ย.", dayNum: "DAY 2", routeTitle: "ฮาโกเนะ ➔ ชิซึโอกะ ➔ คาวากูจิโกะ", defaultTrans: "car" },
+      { key: "day4", dateStr: "4 พ.ย.", dayNum: "DAY 3", routeTitle: "เที่ยวรอบ 5 ทะเลสาบฟูจิ & หมู่บ้านน้ำใส", defaultTrans: "car" },
+      { key: "day5", dateStr: "5 พ.ย.", dayNum: "DAY 4", routeTitle: "สะพานฟูจิ ➔ โกเท็มบะ ➔ เข้าโตเกียว", defaultTrans: "car" },
+      { key: "day6", dateStr: "6 พ.ย.", dayNum: "DAY 5", routeTitle: "ทริปอิบารากิ ตลาดปลา & คืนรถอุเอโนะ", defaultTrans: "car" },
+      { key: "day7", dateStr: "7 พ.ย.", dayNum: "DAY 6", routeTitle: "ตลาดปลาโทโยสุ • อากิฮาบาระ • อุเอโนะ", defaultTrans: "train" },
+      { key: "day8", dateStr: "8 พ.ย.", dayNum: "DAY 7", routeTitle: "อุเอโนะ ➔ ถึงสนามบินนาริตะ 13:00 น.", defaultTrans: "train" }
+    ];
+
+    const DEFAULT_PLAN = {
+      day2: { transport: "car", note: "10:00 น. รับรถเช่าที่สนามบินนาริตะ แวะอุมิโฮตารุ เที่ยวคามาคูระ-เอโนชิมะ เข้าพักออนเซ็นฮาโกเนะ", items: ["TYO-06", "KMK-01", "KMK-03", "KMK-04", "HKN-02"] },
+      day3: { transport: "car", note: "ขึ้นกระเช้าโอวาคุดานิ แวะ Starbucks ชิซึโอกะ ไหว้ศาลเจ้าฟูจิ นั่งชิงช้ามาไกโนะฟาร์ม พักริมทะเลสาบฟูจิ", items: ["HKN-01", "RES-01", "SHZ-01", "RES-02", "SHZ-03", "HTL-01"] },
+      day4: { transport: "car", note: "เก็บครบไฮไลท์รอบทะเลสาบคาวากูจิโกะ หมู่บ้านน้ำใส หาดหงส์ยามานากาโกะ ทานเทมปุระอิดาเต็น", items: ["FUJ-01", "FUJ-03", "FUJ-04", "FUJ-05", "FUJ-06", "FUJ-07", "RES-03", "HTL-01"] },
+      day5: { transport: "car", note: "ถ่ายรูปสะพานลอยฟูจิ สวนสันติภาพเฮวะ ช้อปปิ้งโกเท็มบะเอาท์เล็ท", items: ["SHZ-07", "SHZ-09", "OUT-01"] },
+      day6: { transport: "car", note: "ขับรถเที่ยวอิบารากิ ไหว้พระใหญ่อุชิคุ สวนฮิตาชิ ตลาดปลานากะมินาโตะ เย็นกลับเข้าอุเอโนะคืนรถเช่า", items: ["IBR-01", "IBR-04", "IBR-06", "HTL-02"] },
+      day7: { transport: "train", note: "นั่งรถไฟเที่ยวตลาดปลาโทโยสุ ช้อปปิ้งอากิฮาบาระและตลาดอาเมโยโกะ ทานซูชิหน้าล้นและกิวคัตสึ", items: ["TYO-02", "TYO-03", "TYO-04", "TYO-01", "RES-04", "RES-05"] },
+      day8: { transport: "train", note: "ทานโซบะร้อนมื้อเช้า ซื้อของฝากอุเอโนะ ขึ้นรถไฟด่วน Keisei Skyliner (41 นาที) ถึงสนามบินนาริตะก่อน 13:00 น.", items: ["RES-06", "TYO-01"] }
+    };
+
+    let currentDay = "day2";
+    let planState = {};
+    let photosState = [];
+
+    // 3. เริ่มต้นระบบและสลับหน้าจอ
+    function startSystem() {
+      document.getElementById("landingOverlay").style.display = "none";
+      document.getElementById("appShell").style.display = "block";
+      refreshAllUI();
+    }
+
+    function openLanding() {
+      document.getElementById("landingOverlay").style.display = "flex";
+    }
+
+    function switchView(viewName) {
+      document.getElementById("viewPlanner").style.display = (viewName === "planner") ? "block" : "none";
+      document.getElementById("viewSummary").style.display = (viewName === "summary") ? "block" : "none";
+      document.getElementById("viewCloud").style.display = (viewName === "cloud") ? "block" : "none";
+
+      document.getElementById("navPlanner").className = "nav-btn" + (viewName === "planner" ? " active" : "");
+      document.getElementById("navSummary").className = "nav-btn" + (viewName === "summary" ? " active" : "");
+      document.getElementById("navCloud").className = "nav-btn" + (viewName === "cloud" ? " active" : "");
+
+      if (viewName === "summary") renderSummaryTable();
+    }
+
+    function loadSavedState() {
+      try {
+        const raw = localStorage.getItem("FUJI_HORIZON_V3_PLAN");
+        planState = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_PLAN));
+      } catch (e) {
+        planState = JSON.parse(JSON.stringify(DEFAULT_PLAN));
+      }
+
+      try {
+        const rawP = localStorage.getItem("FUJI_HORIZON_V3_PHOTOS");
+        photosState = rawP ? JSON.parse(rawP) : [];
+      } catch (e) {
+        photosState = [];
+      }
+
+      const gasUrl = localStorage.getItem("FUJI_GAS_URL") || "";
+      const folderId = localStorage.getItem("FUJI_DRIVE_FOLDER") || "";
+      if (document.getElementById("inpGasUrl")) document.getElementById("inpGasUrl").value = gasUrl;
+      if (document.getElementById("inpDriveFolder")) document.getElementById("inpDriveFolder").value = folderId;
+    }
+
+    function saveStateToLocal() {
+      localStorage.setItem("FUJI_HORIZON_V3_PLAN", JSON.stringify(planState));
+    }
+
+    function refreshAllUI() {
+      renderDayCards();
+      renderDatabase();
+      renderActiveDayPlan();
+      renderPhotoGrid();
+    }
+
+    // 4. วาดการ์ดวันที่ทั้ง 7 วันให้ชัดเจน
+    function renderDayCards() {
+      const box = document.getElementById("dayCardsContainer");
+      if (!box) return;
+      box.innerHTML = DAYS_CONFIG.map(d => {
+        const dObj = planState[d.key] || { transport: d.defaultTrans, items: [] };
+        const count = (dObj.items || []).length;
+        const isAct = (d.key === currentDay);
+        const transLabel = dObj.transport === "car" ? "🚗 รถยนต์เช่า (GPS)" : "🚆 รถไฟ / พาส";
+        return `
+          <div class="day-card ${isAct ? 'active' : ''}" onclick="selectDay('${d.key}')">
+            <div class="day-card-top">
+              <span class="day-num-badge">${d.dayNum}</span>
+              <span class="day-count-pill">${count} จุด</span>
+            </div>
+            <div class="day-date-title">วันที่ ${d.dateStr}</div>
+            <div class="day-route-sub" title="${d.routeTitle}">${d.routeTitle}</div>
+            <div class="day-trans-tag">${transLabel}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function selectDay(dayKey) {
+      currentDay = dayKey;
+      refreshAllUI();
+    }
+
+    // 5. วาดรายการคลังสถานที่ท่องเที่ยวฝั่งซ้าย
+    function renderDatabase() {
+      const zVal = document.getElementById("selZone").value;
+      const cVal = document.getElementById("selCat").value;
+      const kw = (document.getElementById("inpSearch").value || "").trim().toLowerCase();
+
+      const filtered = MASTER_DB.filter(item => {
+        const mZ = (zVal === "ALL" || item.zone === zVal);
+        const mC = (cVal === "ALL" || item.category === cVal);
+        const mK = !kw || item.name.toLowerCase().includes(kw) || item.highlight.toLowerCase().includes(kw) || item.tel.includes(kw) || (item.knowledge && item.knowledge.toLowerCase().includes(kw));
+        return mZ && mC && mK;
+      });
+
+      document.getElementById("dbTotalCount").innerText = filtered.length;
+      const todayItems = planState[currentDay]?.items || [];
+      const container = document.getElementById("dbListContainer");
+
+      container.innerHTML = filtered.map(item => {
+        const isAdded = todayItems.includes(item.id);
+        return `
+          <div class="db-card ${isAdded ? 'in-day' : ''}">
+            <div class="db-top">
+              <div>
+                <span class="zone-tag">${item.zone}</span>
+                <span class="cat-tag">${item.category}</span>
+                <div class="place-title" onclick="openModal('${item.id}')">${item.name}</div>
+              </div>
+              <button type="button" class="btn-add ${isAdded ? 'added' : ''}" onclick="addPlaceToDay('${item.id}')">
+                ${isAdded ? '✓ เลือกแล้ว' : '+ เพิ่มเข้าวันนี้'}
+              </button>
+            </div>
+            <div class="place-desc">${item.highlight}</div>
+            <div class="db-footer">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="gps-code">📞 GPS: ${item.tel}</span>
+                <button type="button" class="btn-sm" onclick="copyText('${item.tel}')">คัดลอก</button>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button type="button" class="btn-sm btn-info" onclick="openModal('${item.id}')">📖 อ่านความรู้ & คำแนะนำ</button>
+                <button type="button" class="btn-sm btn-map" onclick="focusMap('${item.id}')">🗺️ แผนที่</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // 6. วาดรายการสถานที่ของวันที่เลือก (คอลัมน์กลาง) และรัน AI วิเคราะห์
+    function renderActiveDayPlan() {
+      const meta = DAYS_CONFIG.find(d => d.key === currentDay);
+      const dayObj = planState[currentDay] || { transport: "car", note: "", items: [] };
+
+      document.getElementById("activeDayHeaderTitle").innerText = `🗓️ แผนวันที่ ${meta.dateStr} (${meta.dayNum})`;
+      document.getElementById("activeDaySubTitle").innerText = meta.routeTitle;
+      document.getElementById("inpDayNote").value = dayObj.note || "";
+
+      document.getElementById("btnModeCar").className = "btn-trans" + (dayObj.transport === "car" ? " active-car" : "");
+      document.getElementById("btnModeTrain").className = "btn-trans" + (dayObj.transport === "train" ? " active-train" : "");
+
+      const items = (dayObj.items || []).map(id => MASTER_DB.find(x => x.id === id)).filter(Boolean);
+      const box = document.getElementById("itinListContainer");
+
+      if (items.length === 0) {
+        box.innerHTML = `
+          <div style="margin:auto;text-align:center;padding:30px;color:var(--text-muted);">
+            <div style="font-size:32px;margin-bottom:8px;">🗺️</div>
+            <div>ยังไม่มีสถานที่ในวันที่ ${meta.dateStr}<br/>คลิกปุ่ม <strong>"+ เพิ่มเข้าวันนี้"</strong> จากคลังด้านซ้ายได้เลยค่ะ</div>
+          </div>
+        `;
+      } else {
+        box.innerHTML = items.map((item, idx) => `
+          <div class="itin-card">
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+              <div class="step-num">${idx + 1}</div>
+              <div>
+                <div class="place-title" style="font-size:13.5px;margin-top:0;" onclick="openModal('${item.id}')">${item.name}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">📍 ${item.address}</div>
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px;">
+                  <span class="gps-code" style="background:rgba(245,158,11,0.15);padding:2px 6px;border-radius:4px;">📞 GPS: ${item.tel}</span>
+                  <button type="button" class="btn-sm btn-info" onclick="openModal('${item.id}')">📖 คำแนะนำ</button>
+                  <button type="button" class="btn-sm btn-map" onclick="focusMap('${item.id}')">แผนที่</button>
+                </div>
+              </div>
+            </div>
+            <div class="ctrl-col">
+              <button type="button" class="btn-icon" title="เลื่อนขึ้น" onclick="moveOrder('${item.id}', -1)">▲</button>
+              <button type="button" class="btn-icon" title="เลื่อนลง" onclick="moveOrder('${item.id}', 1)">▼</button>
+              <button type="button" class="btn-icon del" title="ลบออก" onclick="removePlaceFromDay('${item.id}')">✕</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      runAiRouteAnalysis(items, dayObj.transport, meta);
+    }
+
+    function runAiRouteAnalysis(items, transportMode, meta) {
+      const banner = document.getElementById("aiBanner");
+      const titleEl = document.getElementById("aiStatusTitle");
+      const descEl = document.getElementById("aiStatusDesc");
+
+      if (items.length === 0) {
+        banner.className = "ai-bar";
+        titleEl.innerText = "💡 รอการเลือกสถานที่เข้าตาราง";
+        titleEl.style.color = "#fde047";
+        descEl.innerText = "คลิกเลือกสถานที่จากคอลัมน์ซ้าย ระบบ AI จะช่วยตรวจสอบความเหมาะสมของเส้นทางให้โดยอัตโนมัติค่ะ";
+        return;
+      }
+
+      const zones = [...new Set(items.map(i => i.zone))];
+      const warnings = [];
+
+      if (zones.includes("Ibaraki") && (zones.includes("Fuji") || zones.includes("Shizuoka") || zones.includes("Hakone") || zones.includes("Kamakura"))) {
+        warnings.push("⚠️ โซนข้ามทิศทาง: 'อิบารากิ' อยู่ทางทิศเหนือของโตเกียว ส่วน 'ฟูจิ/ชิซึโอกะ/ฮาโกเนะ' อยู่ทางทิศใต้ ขับรถข้ามกันใช้เวลากว่า 3.5 ชม. แนะนำให้แยกคนละวัน");
+      }
+      if (items.length > 6) {
+        warnings.push(`⚠️ จุดแวะแน่นเกินไป (${items.length} จุด): แนะนำให้จัดไม่เกิน 5-6 จุดต่อวันเพื่อให้มีเวลาเดินเที่ยวสบายๆ`);
+      }
+      if (meta.key === "day8" && zones.some(z => z !== "Tokyo")) {
+        warnings.push("⚠️ วันกลับต้องถึงสนามบินนาริตะ 13:00 น.: ไม่ควรออกนอกโซนโตเกียว/อุเอโนะ แนะนำให้ขึ้นรถไฟ Keisei Skyliner รอบ 11:00 น. (วิ่ง 41 นาทีถึงสนามบิน)");
+      }
+
+      let transAdvice = "";
+      if (zones.includes("Fuji") || zones.includes("Shizuoka") || zones.includes("Ibaraki")) {
+        transAdvice = "🚗 คำแนะนำการเดินทาง: วันนี้เหมาะกับการใช้ 'รถยนต์เช่า' และป้อนเบอร์โทร GPS หน้ารถมากที่สุด เพราะแต่ละจุดอยู่ห่างกัน";
+      } else if (zones.every(z => z === "Tokyo")) {
+        transAdvice = "🚆 คำแนะนำการเดินทาง: วันนี้อยู่ในเขตเมืองโตเกียว แนะนำให้ใช้รถไฟ JR / Metro / Skyliner สะดวกและประหยัดค่าที่จอดรถที่สุด";
+      } else {
+        transAdvice = "🚗/🚆 คำแนะนำการเดินทาง: เส้นทางเชื่อมต่อระหว่างเมือง สามารถขับรถเช่าต่อเนื่องหรือใช้พาสรถไฟท้องถิ่นได้";
+      }
+
+      if (warnings.length > 0) {
+        banner.className = "ai-bar warning";
+        titleEl.innerText = "⚠️ AI แจ้งเตือนควรปรับเส้นทาง";
+        titleEl.style.color = "#fda4af";
+        descEl.innerHTML = warnings.join("<br/>") + `<br/><span style="color:#67e8f9;">${transAdvice}</span>`;
+      } else {
+        banner.className = "ai-bar";
+        titleEl.innerText = `✓ เส้นทางสมดุลดีเยี่ยม (${zones.join(" ➔ ")} • ${items.length} จุดหมาย)`;
+        titleEl.style.color = "#34d399";
+        descEl.innerHTML = `${transAdvice}`;
+      }
+    }
+
+    // 7. ฟังก์ชันจัดการสถานที่ (เพิ่ม, ลบ, เลื่อนลำดับ, โหมดเดินทาง)
+    function addPlaceToDay(id) {
+      if (!planState[currentDay]) planState[currentDay] = { transport: "car", note: "", items: [] };
+      const list = planState[currentDay].items;
+      if (!list.includes(id)) {
+        list.push(id);
+        saveStateToLocal();
+        showToast("✅ เพิ่มสถานที่เข้าตารางเรียบร้อยแล้ว");
+      } else {
+        showToast("ℹ️ สถานที่นี้อยู่ในตารางวันนี้แล้วค่ะ");
+      }
+      focusMap(id);
+      refreshAllUI();
+    }
+
+    function removePlaceFromDay(id) {
+      if (!planState[currentDay]) return;
+      planState[currentDay].items = planState[currentDay].items.filter(x => x !== id);
+      saveStateToLocal();
+      refreshAllUI();
+    }
+
+    function moveOrder(id, dir) {
+      const list = planState[currentDay]?.items || [];
+      const idx = list.indexOf(id);
+      if (idx === -1) return;
+      const target = idx + dir;
+      if (target < 0 || target >= list.length) return;
+      const temp = list[idx];
+      list[idx] = list[target];
+      list[target] = temp;
+      saveStateToLocal();
+      renderActiveDayPlan();
+    }
+
+    function changeTransportMode(mode) {
+      if (!planState[currentDay]) planState[currentDay] = { transport: mode, note: "", items: [] };
+      planState[currentDay].transport = mode;
+      saveStateToLocal();
+      refreshAllUI();
+    }
+
+    function updateDayNote(val) {
+      if (!planState[currentDay]) return;
+      planState[currentDay].note = val;
+      saveStateToLocal();
+    }
+
+    function clearDayItems() {
+      if (!planState[currentDay]) return;
+      planState[currentDay].items = [];
+      saveStateToLocal();
+      refreshAllUI();
+      showToast("ล้างรายการสถานที่ของวันนี้แล้ว");
+    }
+
+    function resetToDefaultPlan() {
+      planState = JSON.parse(JSON.stringify(DEFAULT_PLAN));
+      saveStateToLocal();
+      refreshAllUI();
+      showToast("✨ โหลดแผนการเดินทางแนะนำตั้งต้น (วันที่ 2-8 พ.ย.) เรียบร้อยแล้ว");
+    }
+
+    // 8. ฟังก์ชันแสดงแผนที่ Google Maps และหน้าต่าง Popup ความรู้
+    function focusMap(id) {
+      const item = MASTER_DB.find(x => x.id === id);
+      if (!item) return;
+      document.getElementById("lblActiveMapPlace").innerText = `พิกัด: ${item.name} (GPS: ${item.tel})`;
+      document.getElementById("mapIframe").src = `https://maps.google.com/maps?q=${encodeURIComponent(item.mapQuery + " " + item.address)}&t=&z=14&ie=UTF8&iwloc=&output=embed`;
+      document.getElementById("lnkExternalMap").href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.name + " " + item.address)}`;
+    }
+
+    function openModal(id) {
+      const item = MASTER_DB.find(x => x.id === id);
+      if (!item) return;
+      document.getElementById("mdlZone").innerText = item.zone;
+      document.getElementById("mdlCat").innerText = item.category;
+      document.getElementById("mdlTitle").innerText = item.name;
+      document.getElementById("mdlAddr").innerText = item.address;
+      document.getElementById("mdlTel").innerText = item.tel;
+      document.getElementById("mdlKnowledge").innerText = item.knowledge || item.highlight;
+      document.getElementById("mdlTips").innerText = item.tips || "ป้อนหมายเลขโทรศัพท์ใน GPS รถยนต์เพื่อนำทางได้ทันที";
+      document.getElementById("mdlTime").innerText = item.bestTime || "เที่ยวได้ตลอดวัน";
+      document.getElementById("mdlMapLink").href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.name + " " + item.address)}`;
+
+      document.getElementById("mdlBtnCopy").onclick = function() { copyText(item.tel); };
+      document.getElementById("mdlBtnAdd").onclick = function() { addPlaceToDay(item.id); closeModal(); };
+
+      document.getElementById("infoModal").style.display = "flex";
+      focusMap(id);
+    }
+
+    function closeModal() {
+      document.getElementById("infoModal").style.display = "none";
+    }
+
+    function copyText(txt) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(txt);
+      }
+      showToast(`📋 คัดลอกเบอร์โทร GPS: ${txt} แล้ว`);
+    }
+
+    // 9. ตารางสรุปทริปทั้งหมด (View 2)
+    function renderSummaryTable() {
+      const box = document.getElementById("summaryContentBox");
+      box.innerHTML = DAYS_CONFIG.map(d => {
+        const dObj = planState[d.key] || { transport: "car", note: "", items: [] };
+        const items = (dObj.items || []).map(id => MASTER_DB.find(x => x.id === id)).filter(Boolean);
+        const transLabel = dObj.transport === "car" ? "🚗 รถยนต์เช่า (Car GPS)" : "🚆 รถไฟ / พาส";
+
+        return `
+          <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:14px;padding:16px;">
+            <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+              <div>
+                <span class="day-num-badge" style="font-size:12px;">${d.dayNum}</span>
+                <strong style="font-size:17px;color:#fff;margin-left:8px;">วันที่ ${d.dateStr}: ${d.routeTitle}</strong>
+              </div>
+              <span style="font-size:12px;color:#fde047;font-weight:700;">${transLabel} (${items.length} จุดหมาย)</span>
+            </div>
+            ${dObj.note ? `<div style="font-size:12px;color:#fef3c7;background:rgba(245,158,11,0.12);padding:8px 12px;border-radius:8px;margin-bottom:8px;">📝 <strong>หมายเหตุ:</strong> \${dObj.note}</div>` : ''}
+            <table class="sum-table">
+              <thead>
+                <tr>
+                  <th style="width:40px;">#</th>
+                  <th style="width:240px;">สถานที่ท่องเที่ยว / ร้านอาหาร</th>
+                  <th style="width:90px;">โซน</th>
+                  <th style="width:140px;">เบอร์โทร GPS รถ</th>
+                  <th>จุดเด่น & คำแนะนำสำคัญจาก LM</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map((it, idx) => `
+                  <tr>
+                    <td style="font-weight:700;color:var(--accent-pink);">\${idx + 1}</td>
+                    <td>
+                      <strong style="color:#fff;cursor:pointer;text-decoration:underline;" onclick="openModal('${it.id}')">${it.name}</strong>
+                      <div style="font-size:11px;color:var(--text-muted);">\${it.address}</div>
+                    </td>
+                    <td style="color:var(--accent-cyan);font-weight:600;">\${it.zone}</td>
+                    <td class="gps-code">\${it.tel}</td>
+                    <td>
+                      <div style="color:#e2e8f0;">\${it.highlight}</div>
+                      <div style="color:#fde047;font-size:11.5px;margin-top:3px;">💡 \${it.tips}</div>
+                    </td>
+                  </tr>
+                `).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">ยังไม่ได้เลือกสถานที่ในวันนี้</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }).join("");
+    }
+
+    // 10. ระบบอัปโหลดรูป Google Drive, ซิงค์ Google Sheet และ Ping
+    function uploadPhoto(ev) {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById("lblDriveStatus");
+      statusEl.innerText = `กำลังอ่านไฟล์ ${file.name}...`;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const base64 = e.target.result;
+        const pObj = { day: currentDay, name: file.name, dataUrl: base64, driveUrl: "" };
+        photosState.unshift(pObj);
+        localStorage.setItem("FUJI_HORIZON_V3_PHOTOS", JSON.stringify(photosState.slice(0, 8)));
+        renderPhotoGrid();
+
+        const gasUrl = (localStorage.getItem("FUJI_GAS_URL") || "").trim();
+        const folderId = (localStorage.getItem("FUJI_DRIVE_FOLDER") || "").trim();
+        if (!gasUrl) {
+          statusEl.innerText = "บันทึกรูปในเครื่องแล้ว (ใส่ URL ในแท็บ Cloud เพื่ออัปขึ้น Drive)";
+          showToast("📸 บันทึกรูปภาพเรียบร้อยแล้ว");
+          return;
+        }
+
+        try {
+          statusEl.innerText = "☁️ กำลังอัปโหลดขึ้น Google Drive...";
+          const res = await fetch(gasUrl, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: "UPLOAD_PHOTO", day: currentDay, fileName: file.name, mimeType: file.type, base64: base64, folderId: folderId })
+          });
+          const data = await res.json();
+          if (data.status === "SUCCESS") {
+            pObj.driveUrl = data.fileUrl;
+            localStorage.setItem("FUJI_HORIZON_V3_PHOTOS", JSON.stringify(photosState.slice(0, 8)));
+            renderPhotoGrid();
+            statusEl.innerText = "✅ อัปโหลดขึ้น Google Drive สำเร็จ!";
+            showToast("✅ อัปโหลดรูปเข้า Google Drive สำเร็จ!");
+          }
+        } catch (err) {
+          statusEl.innerText = "✅ ส่งรูปไปยัง Google Apps Script แล้ว";
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function renderPhotoGrid() {
+      const grid = document.getElementById("photoGridContainer");
+      if (!grid) return;
+      if (photosState.length === 0) {
+        grid.innerHTML = `<div style="grid-column:span 2;text-align:center;color:var(--text-muted);font-size:11px;padding:18px;border:1px dashed var(--border-color);border-radius:8px;">ยังไม่มีรูปภาพที่แนบไว้</div>`;
+        return;
+      }
+      grid.innerHTML = photosState.map(p => `
+        <div class="photo-thumb">
+          <img src="${p.dataUrl}" alt="${p.name}"/>
+          <div class="photo-caption">
+            <span>${p.day.toUpperCase()}</span>
+            ${p.driveUrl ? `<a href="\${p.driveUrl}" target="_blank" style="color:#38bdf8;">Drive ↗</a>` : `<span>Local</span>`}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function syncToGoogleSheet() {
+      saveStateToLocal();
+      const gasUrl = (localStorage.getItem("FUJI_GAS_URL") || "").trim();
+      if (!gasUrl) {
+        showToast("💾 บันทึกแผนลงเครื่องเรียบร้อย! (ตั้งค่า Web App URL ในแท็บ Cloud หากต้องการส่งเข้า Google Sheet)");
+        return;
+      }
+
+      const rows = [];
+      DAYS_CONFIG.forEach(d => {
+        const dObj = planState[d.key] || { transport: "car", note: "", items: [] };
+        (dObj.items || []).forEach((id, i) => {
+          const item = MASTER_DB.find(x => x.id === id);
+          if (item) {
+            rows.push({
+              dayLabel: `วันที่ ${d.dateStr} (${d.dayNum})`,
+              order: i + 1,
+              transport: dObj.transport,
+              id: item.id,
+              name: item.name,
+              zone: item.zone,
+              tel: item.tel,
+              address: item.address,
+              note: dObj.note || ""
+            });
+          }
+        });
+      });
+
+      try {
+        showToast("⏳ กำลังซิงค์ข้อมูลไปยัง Google Sheets...");
+        const res = await fetch(gasUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "SAVE_TRIP", tripPlanData: planState, detailedRows: rows, timestamp: new Date().toLocaleString("th-TH") })
+        });
+        const data = await res.json();
+        if (data.status === "SUCCESS") {
+          showToast("✅ ซิงค์ตารางทริปเข้า Google Sheets สำเร็จเรียบร้อย!");
+        }
+      } catch (e) {
+        showToast("✅ ส่งคำสั่งบันทึกไปยัง Google Sheets แล้ว");
+      }
+    }
+
+    async function pullFromGoogleSheet() {
+      const gasUrl = (localStorage.getItem("FUJI_GAS_URL") || "").trim();
+      if (!gasUrl) { showToast("กรุณาใส่ Google Apps Script URL ก่อนค่ะ"); return; }
+      try {
+        showToast("⏳ กำลังดึงข้อมูลทริปจาก Google Sheets...");
+        const res = await fetch(gasUrl + (gasUrl.includes("?") ? "&" : "?") + "action=LOAD_TRIP");
+        const data = await res.json();
+        if (data.status === "SUCCESS" && data.tripPlanData) {
+          planState = data.tripPlanData;
+          saveStateToLocal();
+          refreshAllUI();
+          showToast("✅ ดึงข้อมูลทริปล่าสุดจาก Google Sheets สำเร็จ!");
+        } else {
+          showToast("ℹ️ ยังไม่มีข้อมูลที่บันทึกไว้ใน Sheet");
+        }
+      } catch (e) {
+        showToast("⚠️ ดึงข้อมูลไม่สำเร็จ ตรวจสอบสิทธิ์การ Deploy เป็น Anyone");
+      }
+    }
+
+    function saveCloudSettings() {
+      const url = document.getElementById("inpGasUrl").value.trim();
+      const folder = document.getElementById("inpDriveFolder").value.trim();
+      localStorage.setItem("FUJI_GAS_URL", url);
+      localStorage.setItem("FUJI_DRIVE_FOLDER", folder);
+      runAllPings();
+      showToast("💾 บันทึกตั้งค่า Google Cloud เรียบร้อยแล้ว");
+    }
+
+    async function pingUrl(url) {
+      const t0 = performance.now();
+      try {
+        await fetch(url, { mode: "no-cors", cache: "no-store" });
+        return { ok: true, ms: Math.round(performance.now() - t0) };
+      } catch (e) {
+        return { ok: false, ms: Math.round(performance.now() - t0) };
+      }
+    }
+
+    async function runAllPings() {
+      const m = await pingUrl("https://www.google.com/maps");
+      const s = await pingUrl("https://script.google.com");
+      const d = await pingUrl("https://drive.google.com");
+
+      document.getElementById("lpPingMap").innerText = m.ok ? `ONLINE (${m.ms}ms)` : "OFFLINE";
+      document.getElementById("lpPingSheet").innerText = s.ok ? `ONLINE (${s.ms}ms)` : "OFFLINE";
+      document.getElementById("lpPingDrive").innerText = d.ok ? `ONLINE (${d.ms}ms)` : "OFFLINE";
+
+      const avg = Math.round((m.ms + s.ms + d.ms) / 3);
+      document.getElementById("hdrPingVal").innerText = `${avg} ms`;
+
+      const gasUrl = (localStorage.getItem("FUJI_GAS_URL") || "").trim();
+      document.getElementById("hdrCloudState").innerText = gasUrl ? "☁️ เชื่อมต่อ Google Sheet แล้ว" : "💾 โหมดบันทึกในเครื่อง";
+
+      const logEl = document.getElementById("pingConsoleLog");
+      if (logEl) {
+        const now = new Date().toLocaleTimeString("th-TH");
+        logEl.innerHTML = `
+          <div>[${now}] 🚀 ทดสอบ Ping บริการ Google...</div>
+          <div>[${now}] 🗺️ Google Maps: ${m.ok ? 'ONLINE' : 'OFFLINE'} (${m.ms} ms)</div>
+          <div>[${now}] 📊 Google Sheets: ${s.ok ? 'ONLINE' : 'OFFLINE'} (${s.ms} ms)</div>
+          <div>[${now}] 📁 Google Drive: ${d.ok ? 'ONLINE' : 'OFFLINE'} (${d.ms} ms)</div>
+          <div style="color:#fde047;">[${now}] ✅ ค่าเฉลี่ยความหน่วง: ${avg} ms | ฐานข้อมูล LM: ${MASTER_DB.length} พิกัดพร้อมใช้งาน</div>
+          <hr style="border-color:#1e293b;margin:6px 0;"/>
+        ` + logEl.innerHTML;
+      }
+    }
+
+    function downloadJsonBackup() {
+      const blob = new Blob([JSON.stringify(planState, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "fuji-horizon-trip-2-8-nov.json";
+      a.click();
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById("toastBanner");
+      el.innerText = msg;
+      el.style.display = "block";
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => { el.style.display = "none"; }, 3200);
+    }
+
+    // เริ่มต้นโหลดข้อมูลทันทีเมื่อเปิดหน้าเว็บ
+    loadSavedState();
+    refreshAllUI();
+    runAllPings();
+  </script>
+</body>
+</html>
