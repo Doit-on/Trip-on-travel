@@ -9,12 +9,16 @@
 
 const CLOUD_KEY = 'tabinote.cloud.v1';
 const SHEET_PLACES_KEY = 'tabinote.sheetplaces.v1';
+const DEFAULT_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbzbGd-ZcQqfYo5UxEXshky9z_XQjgvyv6WaQ4xs8Qhese8UYTrnJI9S8cWbYFdN5NEsDA/exec';
 const BASE_PLACES = { ...PLACES };
 const SHARED_FIELDS = ['trip', 'days', 'hotels', 'restaurants', 'expenses', 'budget', 'customPlaces'];
 
 let CLOUD = (() => {
-  try { return { url:'', key:'', tripId:'', by:'', lastSync:0, dirty:false, ai:false, ...JSON.parse(localStorage.getItem(CLOUD_KEY) || '{}') }; }
-  catch (e) { return { url:'', key:'', tripId:'', by:'', lastSync:0, dirty:false, ai:false }; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(CLOUD_KEY) || '{}');
+    return { url: DEFAULT_CLOUD_URL, key:'', tripId:'', by:'', lastSync:0, dirty:false, ai:false, ...saved, ...(saved.url ? {} : { url: DEFAULT_CLOUD_URL }) };
+  }
+  catch (e) { return { url: DEFAULT_CLOUD_URL, key:'', tripId:'', by:'', lastSync:0, dirty:false, ai:false }; }
 })();
 const saveCloud = () => localStorage.setItem(CLOUD_KEY, JSON.stringify(CLOUD));
 const cloudOn = () => !!(CLOUD.url && CLOUD.key && CLOUD.tripId);
@@ -240,7 +244,7 @@ async function connectCloud(btn) {
 }
 function disconnectCloud() {
   if (!confirm(t('cloud_disc_confirm'))) return;
-  CLOUD = { url:'', key:'', tripId:'', by: CLOUD.by, lastSync:0, dirty:false, ai:false };
+  CLOUD = { url: DEFAULT_CLOUD_URL, key:'', tripId:'', by: CLOUD.by, lastSync:0, dirty:false, ai:false };
   saveCloud(); setSync('off'); closeSheet(); rerender();
 }
 function inviteLink() {

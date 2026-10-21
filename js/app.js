@@ -331,8 +331,16 @@ function addStop(id) {
 }
 
 /* ============ PLACE SHEET ============ */
+function photosBox(id) {
+  const ph = photos[id] || [];
+  return `<h3 class="sec">${t('my_photos')} <span class="muted">${ph.length ? '(' + ph.length + ')' : ''}</span>${cloudOn() ? `<span class="chip c-sora mini-chip">☁ Drive</span>` : ''}</h3>
+    <div class="photos">${ph.map((src, k) => `<div class="photo"><img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer"><button type="button" onclick="delPhoto('${id}',${k})" aria-label="delete">${ic('x')}</button>${src.startsWith('data:') && cloudOn() ? '<span class="ph-local">⏳</span>' : ''}</div>`).join('')}
+      <label class="photo add">${ic('camera')}<span>${t('take_photo')}</span><input type="file" accept="image/*" capture="environment" hidden onchange="addPhotos('${id}',this.files)"></label>
+      <label class="photo add">${ic('plus')}<span>${t('from_gallery')}</span><input type="file" accept="image/*" multiple hidden onchange="addPhotos('${id}',this.files)"></label></div>`;
+}
+
 function openPlace(id) {
-  const p = placeOf(id), ph = photos[id] || [];
+  const p = placeOf(id);
   const hi = (p.hi?.[L()]?.length ? p.hi[L()] : p.hi?.th) || [], miss = (p.miss?.[L()]?.length ? p.miss[L()] : p.miss?.th) || [];
   const custom = !!state.customPlaces?.[id];
   openSheet(`<div class="cover">${ART[p.art] || ART.city}</div>
@@ -343,10 +351,7 @@ function openPlace(id) {
     ${p.gps ? `<div class="gps"><div><div class="small muted">GPS</div><code>${esc(p.gps)}</code></div><button class="mini" onclick="copyTxt('${esc(p.gps)}')">${t('copy')}</button></div>` : ''}
     <div class="gps"><div><div class="small muted">Mapcode</div>${p.mapcode ? `<code>${esc(p.mapcode)}</code>` : `<span class="muted small">${t('mapcode_soon')}</span>`}</div>${p.mapcode ? `<button class="mini" onclick="copyTxt('${esc(p.mapcode)}')">${t('copy')}</button>` : ''}</div>
     ${tx(p.transit) ? `<h3 class="sec">${t('public_transit')}</h3><div class="gps start">${ic('train')}<div class="small">${esc(tx(p.transit))}</div></div>` : ''}
-    <h3 class="sec">${t('my_photos')} <span class="muted">${ph.length ? '(' + ph.length + ')' : ''}</span>${cloudOn() ? `<span class="chip c-sora mini-chip">☁ Drive</span>` : ''}</h3>
-    <div class="photos">${ph.map((src, k) => `<div class="photo"><img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer"><button onclick="delPhoto('${id}',${k})" aria-label="delete">${ic('x')}</button>${src.startsWith('data:') && cloudOn() ? '<span class="ph-local">⏳</span>' : ''}</div>`).join('')}
-      <label class="photo add">${ic('camera')}<span>${t('take_photo')}</span><input type="file" accept="image/*" capture="environment" hidden onchange="addPhotos('${id}',this.files)"></label>
-      <label class="photo add">${ic('plus')}<span>${t('from_gallery')}</span><input type="file" accept="image/*" multiple hidden onchange="addPhotos('${id}',this.files)"></label></div>
+    ${photosBox(id)}
     <div class="actions">
       ${p.gps ? `<a class="btn btn-ink" href="${dirUrl(null, p.gps, state.days[ui.day]?.mode || 'car')}" target="_blank" rel="noopener">${ic('pin')}${t('navigate')}</a>` : ''}
       <button class="btn btn-sakura" onclick="showToLocal('${id}')">${ic('talk')}${t('show_local')}</button>
@@ -368,14 +373,21 @@ function compressImage(file, max = 1000, q = .72) {
     img.src = url;
   });
 }
+function refreshPhotoView(id) {
+  if ($('#sheet').classList.contains('on')) {
+    if (PLACES[id]) openPlace(id);
+    else if (state.hotels.some(h => h.id === id)) openHotel(id);
+    else if ((state.restaurants || []).some(r => r.id === id)) openRestaurant(id);
+  }
+  if (['day', 'hotels', 'restaurants'].includes(ui.screen)) rerender();
+}
 async function addPhotos(id, files) {
   if (!files || !files.length) return;
   const list = photos[id] = photos[id] || [];
   const added = [];
   for (const f of files) { try { const d = await compressImage(f); list.push(d); added.push(d); } catch (e) { toast(t('photo_bad')); } }
   if (!savePhotos(photos) && !cloudOn()) list.splice(list.length - added.length);
-  const refresh = () => { if ($('#sheet').classList.contains('on')) openPlace(id); if (ui.screen === 'day') renderDay(); };
-  refresh();
+  refreshPhotoView(id);
   if (!cloudOn()) { toast(t('photo_saved')); return; }
   toast(t('photo_uploading'));
   let ok = 0;
@@ -383,14 +395,14 @@ async function addPhotos(id, files) {
     const url = await uploadPhoto(id, d);
     if (url) { const k = list.indexOf(d); if (k >= 0) list[k] = url; ok++; }
   }
-  savePhotos(photos); refresh();
+  savePhotos(photos); refreshPhotoView(id);
   toast(ok === added.length ? t('photo_uploaded') : t('photo_upload_fail'));
 }
 function delPhoto(id, k) {
   if (!confirm(t('confirm_del'))) return;
   const [url] = photos[id].splice(k, 1);
   if (url && !url.startsWith('data:')) deleteCloudPhoto(url);
-  savePhotos(photos); openPlace(id); if (ui.screen === 'day') renderDay();
+  savePhotos(photos); refreshPhotoView(id);
 }
 
 /* ---------- สถานที่ที่สร้างเอง ---------- */
@@ -667,8 +679,9 @@ function renderHotels() {
   <p class="muted small" style="margin:-6px 0 14px">${t('hotels_sub')}</p>
   ${list.length ? list.map(h => {
     const nights = Math.max(0, Math.round((new Date(h.checkout) - new Date(h.checkin)) / 864e5));
+    const nPh = (photos[h.id] || []).length;
     return `<div class="card hotel">
-      <div class="hotel-top"><div class="thumb hotel-thumb">${ic('hotel')}</div>
+      <div class="hotel-top"><div class="thumb hotel-thumb">${ic('hotel')}${nPh ? `<span class="ph-badge">${nPh}</span>` : ''}</div>
         <div class="grow"><div class="t">${esc(h.name)}</div><div class="s">${esc(h.address || '')}</div></div>
         <button class="icon-btn" onclick="openHotel('${h.id}')" aria-label="edit">${ic('edit')}</button></div>
       <div class="hotel-dates"><span class="chip c-sakura">${t('checkin')} ${fmtD(new Date(h.checkin + 'T00:00:00'), { day:'numeric', month:'short' })}</span><span class="chip c-sora">${t('checkout')} ${fmtD(new Date(h.checkout + 'T00:00:00'), { day:'numeric', month:'short' })}</span><span class="chip c-yuzu">${t('nights', { n: nights })}</span></div>
@@ -691,6 +704,7 @@ function openHotel(id) {
       <button class="chip" onclick="useMyLocation()">${ic('locate')}${t('use_here')}</button>
       <button class="chip" onclick="findOnMap()">${ic('search')}${t('find_gmaps')}</button>
     </div>
+    ${id ? photosBox(id) : ''}
     <div class="actions">${id ? `<button class="btn btn-danger" onclick="delHotel('${id}')">${t('delete')}</button>` : `<button class="btn btn-soft" onclick="closeSheet()">${t('cancel')}</button>`}
       <button class="btn btn-ink" onclick="saveHotel(${id ? `'${id}'` : 'null'})">${t('save')}</button></div>`);
   if (h.gps) gpsCheck();
@@ -755,8 +769,9 @@ function renderRestList() {
   $('#restList').innerHTML = list.length ? list.map(r => {
     const mc = MEALS.find(m => m.k === r.meal) || MEALS[1];
     const searchTarget = [r.nameJa || r.name, r.area, r.address].filter(Boolean).join(' ');
+    const nPh = (photos[r.id] || []).length;
     return `<div class="card hotel">
-      <div class="hotel-top"><div class="thumb rest-thumb">${ic('food')}</div>
+      <div class="hotel-top"><div class="thumb rest-thumb">${ic('food')}${nPh ? `<span class="ph-badge">${nPh}</span>` : ''}</div>
         <div class="grow"><div class="t">${esc(r.name)}${r.nameJa ? ` <span class="muted small">· ${esc(r.nameJa)}</span>` : ''}</div>
           <div class="s">${esc([r.area, r.address].filter(Boolean).join(' · '))}</div></div>
         <button class="icon-btn" onclick="openRestaurant('${r.id}')" aria-label="edit">${ic('edit')}</button></div>
@@ -796,6 +811,7 @@ function openRestaurant(id, defaultDay = 0) {
       <button class="chip" onclick="useRestLocation()">${ic('locate')}${t('use_here')}</button>
       <button class="chip" onclick="findRestOnMap()">${ic('search')}${t('find_gmaps')}</button>
     </div>
+    ${id ? photosBox(id) : ''}
     <div class="actions">${id ? `<button class="btn btn-danger" onclick="delRestaurant('${id}')">${t('delete')}</button>` : `<button class="btn btn-soft" onclick="closeSheet()">${t('cancel')}</button>`}
       <button class="btn btn-ink" onclick="saveRestaurant(${id ? `'${id}'` : 'null'})">${t('save')}</button></div>`);
   if (r.gps) rGpsCheck();
