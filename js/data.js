@@ -83,6 +83,10 @@ const SEED = {
   hotels: [
     { id:'h1', name:'Hotel Gracery Shinjuku', address:'1-19-1 Kabukicho, Shinjuku, Tokyo', gps:'35.69480, 139.70160', checkin:'2026-11-09', checkout:'2026-11-13' },
   ],
+  restaurants: [
+    { id:'r1', name:'Ichinoya ปลาไหลย่างคาวาโกเอะ', nameJa:'いちのや', area:'คาวาโกเอะ', meal:'lunch', day:2, address:'1-18-10 Matsuecho, Kawagoe', gps:'35.92120, 139.48560', note:'ร้านปลาไหลเก่าแก่ตั้งแต่ปี 1832' },
+    { id:'r2', name:'Fuunji ซึเคเมนชินจูกุ', nameJa:'風雲児', area:'ชินจูกุ', meal:'dinner', day:4, address:'2-14-3 Yoyogi, Shibuya', gps:'35.68720, 139.69750', note:'คิวยาวแต่หมุนไว แนะนำซึเคเมนไข่ต้ม' },
+  ],
   expenses: [
     { id:'e1', day:0, cat:'stay',      title:'Hotel Gracery Shinjuku (4 คืน)', amount:32800, cur:'JPY' },
     { id:'e2', day:2, cat:'transport', title:'Seibu Kawagoe Pass × 3', amount:2100, cur:'JPY' },

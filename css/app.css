@@ -127,9 +127,9 @@ h3.sec::before{content:"";width:8px;height:8px;border-radius:3px;background:var(
 .hero-r{text-align:right}
 .hero-r .small{margin-top:8px}
 .hero-fuji{position:absolute;right:-20px;bottom:-8px;width:210px;opacity:.6}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
-.stat{background:var(--card);border-radius:var(--r-md);padding:12px 14px;box-shadow:var(--shadow);text-align:left;transition:transform .2s var(--pop)}
-.stat b{display:block;font-family:var(--head);font-size:22px;font-weight:400;line-height:1.2}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.stat{background:var(--card);border-radius:var(--r-md);padding:12px 10px;box-shadow:var(--shadow);text-align:left;transition:transform .2s var(--pop);min-width:0}
+.stat b{display:block;font-family:var(--head);font-size:20px;font-weight:400;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stat span{font-size:12px;color:var(--ink-3)}
 .days{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -18px;padding:4px 18px 12px;scrollbar-width:none}
 .days::-webkit-scrollbar{display:none}
@@ -177,6 +177,9 @@ h3.sec::before{content:"";width:8px;height:8px;border-radius:3px;background:var(
 .thumb svg{position:absolute;inset:0;width:100%;height:100%}
 .hotel-thumb{background:var(--sakura);color:var(--sakura-ink);display:grid;place-items:center}
 .hotel-thumb svg.i{position:static;width:26px;height:26px}
+.rest-thumb{background:var(--yuzu);color:var(--yuzu-ink);display:grid;place-items:center}
+.rest-thumb svg.i{position:static;width:26px;height:26px}
+.rest-note{margin-top:8px;padding:8px 12px;border-radius:var(--r-sm);background:var(--paper);font-size:13.5px;color:var(--ink-2)}
 .ph-badge{position:absolute;right:4px;bottom:4px;background:var(--ink);color:#fff;font-size:11px;min-width:18px;height:18px;border-radius:9px;display:grid;place-items:center;padding:0 5px}
 .rm{position:absolute;top:-6px;right:-6px;width:26px;height:26px;border-radius:50%;background:var(--card);box-shadow:var(--shadow);display:grid;place-items:center;color:var(--ink-3)}
 .rm svg.i{width:14px;height:14px}
@@ -388,10 +391,10 @@ hr.soft{border:0;border-top:1px dashed var(--line);margin:10px 0}
   .grab{display:none}
   .ov-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:24px;align-items:start}
   .day-actions{grid-template-columns:repeat(3,1fr)}
-  .tiles{grid-template-columns:repeat(4,1fr)}
+  .tiles{grid-template-columns:repeat(5,1fr)}
   .tl{max-width:620px}
 }
-@media (min-width:600px) and (max-width:959px){ .tiles{grid-template-columns:repeat(4,1fr)} }
+@media (min-width:600px) and (max-width:959px){ .tiles{grid-template-columns:repeat(3,1fr)} }
 
 @media print{
   .tabbar,.rail,.topbar .tb-right,.topbar .pill,#landing{display:none!important}

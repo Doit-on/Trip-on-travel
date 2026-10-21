@@ -12,7 +12,7 @@ const tx = o => o == null ? '' : typeof o === 'string' ? o : (o[L()] ?? o.th ?? 
 let state = loadState();
 let photos = loadPhotos();
 mergePlaces();
-const ui = { screen: 'overview', day: 0, talkCat: 'all', talkQ: '', big: null };
+const ui = { screen: 'overview', day: 0, talkCat: 'all', talkQ: '', restMeal: 'all', restQ: '', big: null };
 
 const ICONS = {
   home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -60,6 +60,13 @@ const EXP_CATS = [
 ];
 const DAY_COLORS = ['#9FB9D3', '#B5CDA3', '#E9CF8C', '#BFB1DD', '#E8A6B2', '#9FCFC4', '#F0B48A'];
 const MODES = { car:{ ic:'car', gm:'driving' }, transit:{ ic:'train', gm:'transit' }, walk:{ ic:'walk', gm:'walking' } };
+const MEALS = [
+  { k:'breakfast', c:'c-yuzu'   },
+  { k:'lunch',     c:'c-matcha' },
+  { k:'dinner',    c:'c-sakura' },
+  { k:'cafe',      c:'c-fuji'   },
+  { k:'late',      c:'c-sora'   },
+];
 
 /* ============ dates ============ */
 const isoOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -161,15 +168,15 @@ const altCur = () => dCur() === 'THB' ? 'JPY' : 'THB';
 const NAV = [['overview', 'nav_trip', 'home'], ['day', 'nav_day', 'cal'], ['talk', 'nav_talk', 'talk'], ['money', 'nav_money', 'money'], ['more', 'nav_more', 'grid']];
 const RENDER = {
   overview: renderOverview, day: renderDay, talk: renderTalk, money: renderMoney, more: renderMore,
-  hotels: renderHotels, sos: renderSOS, ai: renderAI, report: renderReport,
+  hotels: renderHotels, restaurants: renderRestaurants, sos: renderSOS, ai: renderAI, report: renderReport,
 };
 
 function renderNav() {
-  const active = ['hotels', 'sos', 'ai', 'report'].includes(ui.screen) ? 'more' : ui.screen;
+  const active = ['hotels', 'restaurants', 'sos', 'ai', 'report'].includes(ui.screen) ? 'more' : ui.screen;
   $('#tabbar').innerHTML = NAV.map(([k, l, i]) => `<button class="tab ${k === active ? 'on' : ''}" onclick="go('${k}')">${ic(i)}<span>${t(l)}</span></button>`).join('');
   $('#rail').innerHTML = `<div class="brand">Tabi Note<span>旅</span></div>` +
     NAV.map(([k, l, i]) => `<button class="${k === active ? 'on' : ''}" onclick="go('${k}')">${ic(i)}${t(l)}</button>`).join('') +
-    `<div class="rail-sub">${['hotels', 'ai', 'sos', 'report'].map(k => `<button class="${k === ui.screen ? 'on' : ''}" onclick="go('${k}')">${ic({ hotels:'hotel', ai:'ai', sos:'sos', report:'chart' }[k])}${t('m_' + k)}</button>`).join('')}</div>`;
+    `<div class="rail-sub">${['hotels', 'restaurants', 'ai', 'sos', 'report'].map(k => `<button class="${k === ui.screen ? 'on' : ''}" onclick="go('${k}')">${ic({ hotels:'hotel', restaurants:'food', ai:'ai', sos:'sos', report:'chart' }[k])}${t('m_' + k)}</button>`).join('')}</div>`;
 }
 
 function go(k) {
@@ -213,8 +220,9 @@ function renderOverview() {
     </div>
     <div class="stats">
       <button class="stat" onclick="go('day')"><b>${nPlaces}</b><span>${t('st_places')}</span></button>
-      <button class="stat" onclick="go('money')"><b>${fmtMoneyShort(spentIn(dCur()), dCur())}</b><span>${t('st_spent')}</span></button>
+      <button class="stat" onclick="go('restaurants')"><b>${(state.restaurants || []).length}</b><span>${t('st_restaurants')}</span></button>
       <button class="stat" onclick="go('hotels')"><b>${state.hotels.length}</b><span>${t('st_hotels')}</span></button>
+      <button class="stat" onclick="go('money')"><b>${fmtMoneyShort(spentIn(dCur()), dCur())}</b><span>${t('st_spent')}</span></button>
     </div>
     <h3 class="sec">${t('pick_day')}</h3>
     <div class="days">${state.days.map((d, i) => `<button class="day ${i === ui.day ? 'on' : ''}" onclick="openDay(${i})"><span class="d">${wkShort(i)}</span><span class="n">${dateOfDay(i).getDate()}</span><span class="dot" style="background:${DAY_COLORS[i % DAY_COLORS.length]}"></span></button>`).join('')}
@@ -268,6 +276,7 @@ function renderDay() {
   const allStops = s.items.filter(x => x.type === 'stop').map(x => x.place.gps).filter(Boolean);
   const routeAll = day.mode === 'car' && allStops.length
     ? dirUrl(s.hs?.gps, s.he?.gps || allStops[allStops.length - 1], 'car', s.he ? allStops : allStops.slice(0, -1)) : null;
+  const dayRests = (state.restaurants || []).filter(r => r.day === i + 1);
 
   $('#s-day').innerHTML = `
   <header class="topbar"><button class="pill" onclick="go('overview')">${ic('back')}${t('overview')}</button>
@@ -284,6 +293,11 @@ function renderDay() {
     ${routeAll ? `<a class="btn btn-soft" href="${routeAll}" target="_blank" rel="noopener">${ic('route')}${t('route_all')}</a>` : ''}
     <a class="btn btn-soft" href="${calUrl(i)}" target="_blank" rel="noopener">${ic('cal')}${t('to_calendar')}</a>
   </div>
+  <h3 class="sec">${t('day_rest_sec')}</h3>
+  <div class="pick-list">${dayRests.map(r => `<div class="place"><div class="thumb rest-thumb">${ic('food')}</div>
+    <button class="grow" style="text-align:left" onclick="openRestaurant('${r.id}')"><div class="t">${esc(r.name)}${r.nameJa ? ` <span class="muted small">· ${esc(r.nameJa)}</span>` : ''}</div><div class="s">${r.meal ? t('meal_' + r.meal) : ''}${r.area ? ' · ' + esc(r.area) : ''}${r.note ? ' · ' + esc(r.note) : ''}</div></button>
+    <a class="leg-go" href="${r.gps ? dirUrl(null, r.gps, day.mode) : mapUrl([r.nameJa || r.name, r.area, r.address].filter(Boolean).join(' '))}" target="_blank" rel="noopener">${t('navigate')}</a></div>`).join('')}
+    <button class="hotel-mini empty" onclick="openRestaurant(null,${i + 1})">${ic('food')}<div><b>${t('add_rest_cta')}</b><div class="small muted">${t('add_rest_why')}</div></div></button></div>
   ${!s.hs && !s.he ? `<p class="note warn">${t('no_hotel_warn')} <a href="#" onclick="openHotel();return false">${t('add_hotel_cta')}</a></p>` : ''}
   ${day.mode === 'transit' && day.stops.length ? `<p class="note">${t('transit_hint')}</p>` : ''}`;
 }
@@ -477,6 +491,7 @@ function renderTalkList() {
 function fillOptions() {
   const opts = [];
   state.hotels.forEach(h => opts.push({ th:h.name, ja:h.name, ro:h.name }));
+  (state.restaurants || []).forEach(r => opts.push({ th:r.name, ja:r.nameJa || r.name, ro:r.name }));
   const seen = new Set();
   state.days.forEach(d => d.stops.forEach(s => { if (!seen.has(s.id) && PLACES[s.id]) { seen.add(s.id); const p = PLACES[s.id]; opts.push({ th:p.name.th, ja:p.name.ja, ro:p.ro }); } }));
   Object.entries(PLACES).forEach(([id, p]) => { if (!seen.has(id)) opts.push({ th:p.name.th, ja:p.name.ja, ro:p.ro }); });
@@ -512,6 +527,12 @@ function closeBig() { $('#big')?.classList.remove('on'); document.body.style.ove
 function showToLocal(id) {
   const p = placeOf(id), k = PHRASES.findIndex(x => x.id === 'how_go');
   closeSheet(); openPhrase(k, { th:p.name.th, ja:p.name.ja, ro:p.ro });
+}
+function showRestToLocal(id) {
+  const r = (state.restaurants || []).find(x => x.id === id);
+  if (!r) return;
+  const k = PHRASES.findIndex(x => x.id === 'how_go');
+  closeSheet(); openPhrase(k, { th:r.name, ja:r.nameJa || r.name, ro:r.name });
 }
 function speakJa(text) {
   if (!('speechSynthesis' in window)) return toast(t('no_tts'));
@@ -713,10 +734,117 @@ function delHotel(id) {
   state.hotels = state.hotels.filter(h => h.id !== id); saveState(); closeSheet(); renderHotels();
 }
 
+/* ============ RESTAURANTS ============ */
+function renderRestaurants() {
+  $('#s-restaurants').innerHTML = topbar(t('rest_eyebrow'), t('rest_title'), `<button class="pill ink" onclick="openRestaurant()">${ic('plus')}${t('add')}</button>`) + `
+  <p class="muted small" style="margin:-6px 0 12px">${t('rest_sub')}</p>
+  <div class="searchbox">${ic('search')}<input id="restQ" placeholder="${t('rest_search')}" value="${esc(ui.restQ)}" oninput="ui.restQ=this.value;renderRestList()"></div>
+  <div class="cats">${[{ k:'all' }, ...MEALS].map(m => `<button class="chip ${ui.restMeal === m.k ? 'on' : ''}" onclick="ui.restMeal='${m.k}';renderRestaurants()">${t('meal_' + m.k)}</button>`).join('')}</div>
+  <div id="restList"></div>`;
+  renderRestList();
+}
+function renderRestList() {
+  const all = [...(state.restaurants || [])].sort((a, b) => ((a.day || 99) - (b.day || 99)) || String(a.name).localeCompare(String(b.name)));
+  if (!all.length) {
+    $('#restList').innerHTML = `<div class="card empty-card"><div class="doodle">🍜</div><b>${t('no_rest')}</b><div class="small muted">${t('add_rest_why')}</div></div>`;
+    return;
+  }
+  const q = ui.restQ.trim().toLowerCase();
+  const list = all.filter(r => (ui.restMeal === 'all' || r.meal === ui.restMeal) &&
+    (!q || [r.name, r.nameJa, r.area, r.address, r.note].filter(Boolean).join(' ').toLowerCase().includes(q)));
+  $('#restList').innerHTML = list.length ? list.map(r => {
+    const mc = MEALS.find(m => m.k === r.meal) || MEALS[1];
+    const searchTarget = [r.nameJa || r.name, r.area, r.address].filter(Boolean).join(' ');
+    return `<div class="card hotel">
+      <div class="hotel-top"><div class="thumb rest-thumb">${ic('food')}</div>
+        <div class="grow"><div class="t">${esc(r.name)}${r.nameJa ? ` <span class="muted small">· ${esc(r.nameJa)}</span>` : ''}</div>
+          <div class="s">${esc([r.area, r.address].filter(Boolean).join(' · '))}</div></div>
+        <button class="icon-btn" onclick="openRestaurant('${r.id}')" aria-label="edit">${ic('edit')}</button></div>
+      <div class="hotel-dates">
+        ${r.day ? `<span class="chip c-sora">${t('day_n', { n: r.day })} · ${dShort(r.day - 1)}</span>` : `<span class="chip">${t('any_day')}</span>`}
+        ${r.meal ? `<span class="chip ${mc.c}">${t('meal_' + r.meal)}</span>` : ''}
+        ${r.area ? `<span class="chip c-matcha">${esc(r.area)}</span>` : ''}
+      </div>
+      ${r.note ? `<div class="rest-note">🍴 ${esc(r.note)}</div>` : ''}
+      ${r.gps ? `<div class="gps"><div><div class="small muted">GPS</div><code>${esc(r.gps)}</code></div><button class="mini" onclick="copyTxt('${esc(r.gps)}')">${t('copy')}</button></div>` : ''}
+      <div class="actions">
+        <a class="btn btn-ink" href="${r.gps ? dirUrl(null, r.gps) : mapUrl(searchTarget)}" target="_blank" rel="noopener">${ic('pin')}${t('navigate')}</a>
+        <button class="btn btn-sakura" onclick="showRestToLocal('${r.id}')">${ic('talk')}${t('show_local')}</button>
+      </div>
+    </div>`;
+  }).join('') : `<div class="card empty-card"><div class="doodle">🔍</div>${t('rest_none')}</div>`;
+}
+function openRestaurant(id, defaultDay = 0) {
+  const r = id ? (state.restaurants || []).find(x => x.id === id) : { name:'', nameJa:'', area:'', meal:'lunch', day: defaultDay || (ui.screen === 'day' ? ui.day + 1 : 0), address:'', gps:'', note:'' };
+  if (!r) return;
+  openSheet(`<h2 class="sheet-title">${id ? t('edit_rest') : t('new_rest')}</h2>
+    <label class="lbl">${t('rest_name')}</label><input id="rName" class="input" value="${esc(r.name)}" placeholder="${t('rest_name_ph')}">
+    <div class="two">
+      <div><label class="lbl">${t('rest_name_ja')}</label><input id="rJa" class="input" value="${esc(r.nameJa || '')}" placeholder="例：一蘭 / 風雲児"></div>
+      <div><label class="lbl">${t('area')}</label><input id="rArea" class="input" value="${esc(r.area || '')}" placeholder="${t('area_ph')}"></div>
+    </div>
+    <label class="lbl">${t('meal')}</label>
+    <div class="cat-pick" id="rMeal">${MEALS.map(m => `<button type="button" class="chip ${r.meal === m.k ? 'on' : ''}" data-meal="${m.k}" onclick="pickCat(this)">${t('meal_' + m.k)}</button>`).join('')}</div>
+    <label class="lbl">${t('which_day')}</label>
+    <select id="rDay" class="input"><option value="0">${t('any_day')}</option>${state.days.map((d, k) => `<option value="${k + 1}" ${r.day === k + 1 ? 'selected' : ''}>${t('day_n', { n: k + 1 })} · ${dShort(k)} (${esc(tx(d.title))})</option>`).join('')}</select>
+    <label class="lbl">${t('address')}</label><input id="rAddr" class="input" value="${esc(r.address || '')}" placeholder="1-18-10 Matsuecho, Kawagoe">
+    <label class="lbl">${t('rest_note')}</label><input id="rNote" class="input" value="${esc(r.note || '')}" placeholder="${t('rest_note_ph')}">
+    <label class="lbl">${t('rest_gps')}</label>
+    <input id="rGps" class="input mono" value="${esc(r.gps || '')}" placeholder="35.68720, 139.69750" oninput="rGpsCheck()">
+    <div id="rGpsMsg" class="small muted">${t('gps_help')}</div>
+    <div class="gps-tools">
+      <button class="chip" onclick="useRestLocation()">${ic('locate')}${t('use_here')}</button>
+      <button class="chip" onclick="findRestOnMap()">${ic('search')}${t('find_gmaps')}</button>
+    </div>
+    <div class="actions">${id ? `<button class="btn btn-danger" onclick="delRestaurant('${id}')">${t('delete')}</button>` : `<button class="btn btn-soft" onclick="closeSheet()">${t('cancel')}</button>`}
+      <button class="btn btn-ink" onclick="saveRestaurant(${id ? `'${id}'` : 'null'})">${t('save')}</button></div>`);
+  if (r.gps) rGpsCheck();
+}
+function rGpsCheck() {
+  const v = $('#rGps').value.trim(), g = parseGps(v), m = $('#rGpsMsg');
+  if (!v) { m.className = 'small muted'; m.textContent = t('gps_help'); return null; }
+  if (g) { m.className = 'small ok'; m.innerHTML = `✓ ${g} · <a href="${mapUrl(g)}" target="_blank" rel="noopener">${t('check_map')}</a>`; }
+  else { m.className = 'small bad'; m.textContent = t('gps_bad'); }
+  return g;
+}
+function useRestLocation() {
+  if (!navigator.geolocation) return toast(t('geo_fail'));
+  toast(t('geo_wait'));
+  navigator.geolocation.getCurrentPosition(
+    pos => { $('#rGps').value = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`; rGpsCheck(); },
+    () => toast(t('geo_fail')), { enableHighAccuracy: true, timeout: 10000 });
+}
+function findRestOnMap() {
+  const q = [$('#rName').value, $('#rJa').value, $('#rArea').value, $('#rAddr').value].filter(Boolean).join(' ');
+  if (!q) return toast(t('need_rest_name'));
+  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`, '_blank', 'noopener');
+  toast(t('gmaps_tip'));
+}
+function saveRestaurant(id) {
+  const name = $('#rName').value.trim();
+  if (!name) { toast(t('need_rest_name')); return; }
+  const raw = $('#rGps').value.trim(), gps = raw ? parseGps(raw) : '';
+  if (raw && !gps) { toast(t('gps_bad')); return; }
+  const meal = document.querySelector('#rMeal .chip.on')?.dataset.meal || 'lunch';
+  const rec = {
+    name, nameJa: $('#rJa').value.trim(), area: $('#rArea').value.trim(),
+    meal, day: +$('#rDay').value, address: $('#rAddr').value.trim(), gps, note: $('#rNote').value.trim(),
+  };
+  state.restaurants = state.restaurants || [];
+  if (id) Object.assign(state.restaurants.find(x => x.id === id), rec);
+  else state.restaurants.push({ id: uid('r'), ...rec });
+  saveState(); closeSheet(); if (ui.screen === 'restaurants') renderRestaurants(); else rerender();
+  toast(t('rest_saved'));
+}
+function delRestaurant(id) {
+  if (!confirm(t('confirm_del'))) return;
+  state.restaurants = (state.restaurants || []).filter(r => r.id !== id); saveState(); closeSheet(); rerender();
+}
+
 /* ============ MORE ============ */
 function renderMore() {
   const tiles = [
-    ['ai', 'ai', 'c-fuji'], ['hotels', 'hotel', 'c-sakura'], ['sos', 'sos', 'c-yuzu'], ['report', 'chart', 'c-matcha'],
+    ['ai', 'ai', 'c-fuji'], ['hotels', 'hotel', 'c-sakura'], ['restaurants', 'food', 'c-yuzu'], ['sos', 'sos', 'c-sora'], ['report', 'chart', 'c-matcha'],
   ];
   $('#s-more').innerHTML = topbar(t('more_eyebrow'), t('more_title')) + `
   <div class="tiles">${tiles.map(([k, i, c]) => `<button class="tile ${c}" onclick="go('${k}')">${ic(i)}<b>${t('m_' + k)}</b><span>${t('m_' + k + '_sub')}</span></button>`).join('')}</div>
@@ -861,9 +989,10 @@ function renderReport() {
     <div class="right"><b>${fmtMoney(total, D)}</b><div class="small muted">≈ ${fmtMoney(convert(total, D, A), A)} · ${t('per_person', { a: fmtMoney(total / state.trip.people, D) })}</div></div></div>
   </div>
   <h3 class="sec">${t('rep_plan')}</h3>
-  ${state.days.map((d, i) => { const s = schedule(i), ld = loadOf(i), dayCost = state.expenses.filter(e => e.day === i + 1).reduce((a, e) => a + expIn(e, D), 0); return `
+  ${state.days.map((d, i) => { const s = schedule(i), ld = loadOf(i), dayCost = state.expenses.filter(e => e.day === i + 1).reduce((a, e) => a + expIn(e, D), 0), dRests = (state.restaurants || []).filter(r => r.day === i + 1); return `
     <div class="card rep-day"><div class="rep-dh"><span class="num" style="background:${DAY_COLORS[i % DAY_COLORS.length]}40">${i + 1}</span><div class="grow"><b>${esc(tx(d.title))}</b><div class="small muted">${fmtD(dateOfDay(i), { weekday:'short', day:'numeric', month:'short' })} · ${t('mode_' + d.mode)} · ${t('lv_' + ld.lv)}</div></div><b>${fmtMoneyShort(dayCost, D)}</b></div>
-    ${s.items.filter(x => x.type !== 'leg').map(x => `<div class="rep-row"><span>${hm(x.time)}</span>${esc(x.type === 'hotel' ? '🏨 ' + x.hotel.name : pName(x.place))}</div>`).join('') || `<div class="rep-row muted">${t('free_day')}</div>`}</div>`; }).join('')}
+    ${s.items.filter(x => x.type !== 'leg').map(x => `<div class="rep-row"><span>${hm(x.time)}</span>${esc(x.type === 'hotel' ? '🏨 ' + x.hotel.name : pName(x.place))}</div>`).join('') || `<div class="rep-row muted">${t('free_day')}</div>`}
+    ${dRests.map(r => `<div class="rep-row"><span>${r.meal ? t('meal_' + r.meal) : '🍜'}</span>${esc('🍜 ' + r.name + (r.area ? ' (' + r.area + ')' : ''))}</div>`).join('')}</div>`; }).join('')}
   <h3 class="sec">${t('rep_money')}</h3>
   <div class="card">${EXP_CATS.map(c => { const v = state.expenses.filter(e => e.cat === c.k).reduce((a, e) => a + expIn(e, D), 0); return `<div class="rep-row"><span><i class="sw" style="background:${c.color}"></i>${t('cat_' + c.k)}</span><b>${fmtMoney(v, D)}</b><span class="muted small">${total ? Math.round(v / total * 100) : 0}%</span></div>`; }).join('')}
     <div class="rep-row total"><span>${t('total')}</span><b>${fmtMoney(total, D)}</b><span></span></div></div>`;
@@ -932,6 +1061,7 @@ function boot() {
   else if (k === 'phrase') { go('talk'); setTimeout(() => openPhrase(+v || 0), 60); }
   else if (k === 'expense') { go('money'); setTimeout(() => openExpense(), 60); }
   else if (k === 'hotel') { go('hotels'); setTimeout(() => openHotel(), 60); }
+  else if (k === 'restaurant') { go('restaurants'); setTimeout(() => openRestaurant(), 60); }
   else if (k === 'cloud') { go('more'); setTimeout(() => openCloud(), 60); }
   else if (k === 'newplace') { ui.day = 3; go('day'); setTimeout(() => openCustomPlace(), 60); }
   else go(RENDER[k] ? k : 'overview');

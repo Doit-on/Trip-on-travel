@@ -10,7 +10,7 @@
 const CLOUD_KEY = 'tabinote.cloud.v1';
 const SHEET_PLACES_KEY = 'tabinote.sheetplaces.v1';
 const BASE_PLACES = { ...PLACES };
-const SHARED_FIELDS = ['trip', 'days', 'hotels', 'expenses', 'budget', 'customPlaces'];
+const SHARED_FIELDS = ['trip', 'days', 'hotels', 'restaurants', 'expenses', 'budget', 'customPlaces'];
 
 let CLOUD = (() => {
   try { return { url:'', key:'', tripId:'', by:'', lastSync:0, dirty:false, ai:false, ...JSON.parse(localStorage.getItem(CLOUD_KEY) || '{}') }; }
@@ -105,6 +105,7 @@ function mergeRemote(remote) {
   const byId = (a = [], b = []) => { const m = new Map(); a.forEach(x => m.set(x.id, x)); b.forEach(x => m.set(x.id, x)); return [...m.values()]; };
   state.expenses = byId(remote.expenses, state.expenses);
   state.hotels = byId(remote.hotels, state.hotels);
+  state.restaurants = byId(remote.restaurants, state.restaurants);
   state.customPlaces = { ...(remote.customPlaces || {}), ...(state.customPlaces || {}) };
   saveState({ localOnly: true });
 }
@@ -157,6 +158,7 @@ function aiContext() {
     trip: { name: tx(state.trip.name), start: state.trip.start, people: state.trip.people, budget: state.budget },
     spentTHB: Math.round(spentIn('THB')),
     hotels: state.hotels.map(h => ({ name: h.name, gps: h.gps, checkin: h.checkin, checkout: h.checkout })),
+    restaurants: (state.restaurants || []).map(r => ({ name: r.name, ja: r.nameJa, area: r.area, meal: r.meal, day: r.day, gps: r.gps, note: r.note })),
     days: state.days.map((d, i) => {
       const ld = loadOf(i);
       return { day: i + 1, date: isoOf(dateOfDay(i)), title: tx(d.title), mode: d.mode, start: d.start, load: ld.lv, totalMin: ld.s.total,

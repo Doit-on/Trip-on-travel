@@ -11,7 +11,11 @@ const clone = o => JSON.parse(JSON.stringify(o));
 function loadState() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE_KEY));
-    if (s && s.v === SEED.v && Array.isArray(s.days)) return { ...clone(SEED), ...s };
+    if (s && s.v === SEED.v && Array.isArray(s.days)) {
+      const out = { ...clone(SEED), ...s };
+      if (!Array.isArray(out.restaurants)) out.restaurants = clone(SEED.restaurants);
+      return out;
+    }
   } catch (e) { console.warn('[store] reset', e); }
   return clone(SEED);
 }
