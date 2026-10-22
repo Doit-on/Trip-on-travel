@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Komorebi — วางแผนเที่ยวญี่ปุ่นอัจฉริยะ</title>
+  <style>
+    :root {
+      --bg: #F5F5F7;
+      --card: #FFFFFF;
+      --text: #1D1D1F;
+      --sub: #86868B;
+      --accent: #0071E3;
+      --accent-soft: rgba(0, 113, 227, 0.08);
+      --border: rgba(0, 0, 0, 0.08);
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --success: #34C759;
+      --warning: #FF9500;
+      --danger: #FF3B30;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .app-viewport {
+      width: 100%;
+      max-width: 500px;
+      min-height: 100vh;
+      background: var(--bg);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* กลไกการแสดงผลหน้าจอ */
+    .screen-view {
+      display: none;
+      flex-direction: column;
+      padding: 20px 20px 90px 20px;
+    }
+
+    .diag-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      margin-bottom: 16px;
+    }
+    .diag-title { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: var(--sub); margin-bottom: 6px; }
+    .diag-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .diag-box { background: var(--bg); border-radius: var(--radius-sm); padding: 6px; font-size: 11px; text-align: center; }
+    .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--success); margin-right: 4px; }
+
+    .hero { text-align: center; margin: 10px 0 16px 0; }
+    .badge {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 12px auto;
+      border-radius: 26px;
+      background: linear-gradient(145deg, #FFEFEF, #F5F5F7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    }
+    .badge svg { width: 75px; height: 75px; }
+    h1 { font-size: 24px; font-weight: 700; }
+    p.desc { font-size: 13px; color: var(--sub); margin-top: 4px; }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      font-size: 14px;
+      background: #FFF;
+      margin-top: 4px;
+      margin-bottom: 10px;
+      font-family: inherit;
+    }
+
+    .pref-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 4px;
+      margin-bottom: 10px;
+    }
+    .pref-chip {
+      background: #FAFAFC;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      text-align: center;
+      user-select: none;
+    }
+    .pref-chip.active {
+      background: var(--text);
+      color: #FFF;
+      border-color: var(--text);
+      font-weight: 600;
+    }
+
+    .btn-main {
+      display: block;
+      width: 100%;
+      background: var(--accent);
+      color: #FFF;
+      border: none;
+      padding: 14px;
+      border-radius: var(--radius-md);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn-sub {
+      display: block;
+      width: 100%;
+      background: #E5E5EA;
+      color: var(--text);
+      border: none;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn-ai-magic {
+      display: block;
+      width: 100%;
+      background: linear-gradient(135deg, #0071E3, #5856D6);
+      color: #FFF;
+      border: none;
+      padding: 12px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 12px rgba(88, 86, 214, 0.25);
+    }
+
+    .alert-banner {
+      display: none;
+      background: #FFF8E6;
+      border: 1px solid #FFE6A3;
+      border-radius: var(--radius-md);
+      padding: 12px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      color: #8A5B00;
+      line-height: 1.4;
+    }
+
+    .cal-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      scrollbar-width: none;
+    }
+    .cal-tabs::-webkit-scrollbar { display: none; }
+    .day-pill {
+      flex: 0 0 100px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 8px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .day-pill.active {
+      background: var(--text);
+      color: #FFF;
+      border-color: var(--text);
+    }
+    .day-pill .d-name { font-size: 13px; font-weight: 700; }
+    .day-pill .d-date { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+
+    .loc-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .loc-row:last-child { border-bottom: none; }
+    .loc-info { flex: 1; padding-right: 10px; cursor: pointer; }
+    .loc-name { font-size: 14px; font-weight: 600; }
+    .loc-meta { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .gps-tag {
+      display: inline-block;
+      background: #EBF5FF;
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .btn-add {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: none;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-add.selected {
+      background: var(--accent);
+      color: #FFF;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-box {
+      background: #FFF;
+      width: 100%;
+      max-width: 500px;
+      border-top-left-radius: var(--radius-lg);
+      border-top-right-radius: var(--radius-lg);
+      padding: 20px;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .tabbar {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      max-width: 500px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 0;
+      z-index: 100;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      font-size: 11px;
+      color: var(--sub);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .tab-btn.active { color: var(--accent); font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="app-viewport">
+
+  <!-- SCREEN 1: LANDING (แสดงเป็นค่าเริ่มต้น) -->
+  <div id="screenLanding" class="screen-view" style="display:flex;">
+    <div class="diag-panel">
+      <div class="diag-title">
+        <span>SYSTEM DIAGNOSTICS</span>
+        <span style="color:var(--success);">พร้อมทำงาน</span>
+      </div>
+      <div class="diag-grid">
+        <div class="diag-box"><span class="dot"></span>Gateway</div>
+        <div class="diag-box"><span class="dot"></span>Sheets DB</div>
+        <div class="diag-box"><span class="dot"></span>Drive Folder</div>
+      </div>
+    </div>
+
+    <div class="hero">
+      <div class="badge">
+        <svg viewBox="0 0 200 200" fill="none">
+          <circle cx="100" cy="95" r="45" fill="#E03C31"/>
+          <path d="M40 160L90 75C96 65 104 65 110 75L160 160H40Z" fill="#2C3437"/>
+          <path d="M78 95L100 80L122 95L113 112L100 106L87 112L78 95Z" fill="#FFFFFF"/>
+          <path d="M75 160V135M125 160V135M65 137H135M70 144H130" stroke="#FF5E5B" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1>Komorebi</h1>
+      <p class="desc">ระบบวางแผนท่องเที่ยวญี่ปุ่นอัจฉริยะ</p>
+    </div>
+
+    <div class="card">
+      <div style="font-size:12px; font-weight:700; color:var(--sub); margin-bottom:8px;">1. กำหนดวันเดินทางตามปฏิทิน</div>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div>
+          <span style="font-size:11px; color:var(--sub);">วันเริ่มเดินทาง</span>
+          <input type="date" id="startDateInput" value="2026-11-02" class="form-input" onchange="calcDuration()">
+        </div>
+        <div>
+          <span style="font-size:11px; color:var(--sub);">วันสิ้นสุด</span>
+          <input type="date" id="endDateInput" value="2026-11-08" class="form-input" onchange="calcDuration()">
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px;">
+        <span style="color:var(--sub);">ระยะเวลารวม:</span>
+        <strong id="durationLabel" style="color:var(--accent);">7 วัน (6 คืน)</strong>
+      </div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--sub); margin-bottom:4px;">2. จุดเริ่มต้นออกเดินทาง</div>
+      <select id="originKeySelect" class="form-input">
+        <option value="NRT">✈️ สนามบินนาริตะ (Narita Airport - NRT)</option>
+        <option value="HND">✈️ สนามบินฮาเนดะ (Haneda Airport - HND)</option>
+        <option value="SHINJUKU">🚉 สถานีรถไฟชินจูกุ (Shinjuku Station)</option>
+        <option value="TOKYO">🚉 สถานีรถไฟโตเกียว (Tokyo Station)</option>
+        <option value="KAWAGUCHIKO">🗻 สถานีรถไฟคาวากูจิโกะ (Kawaguchiko)</option>
+      </select>
+
+      <div style="font-size:12px; font-weight:700; color:var(--sub); margin-bottom:4px; margin-top:4px;">3. แนวทางการเที่ยว (เลือกได้มากกว่า 1 ข้อ)</div>
+      <div class="pref-group">
+        <div class="pref-chip active" onclick="togglePref('fuji', this)">🗻 ล่าฟูจิ & 5 ทะเลสาบ</div>
+        <div class="pref-chip active" onclick="togglePref('food', this)">🍜 สตรีทฟู้ด & ตลาดปลา</div>
+        <div class="pref-chip" onclick="togglePref('cafe', this)">☕ คาเฟ่ & สตาร์บัคส์วิวสวย</div>
+        <div class="pref-chip" onclick="togglePref('culture', this)">⛩️ สายมู & หมู่บ้านโบราณ</div>
+        <div class="pref-chip" onclick="togglePref('photo', this)">📷 จุดถ่ายภาพ & อนิเมะ</div>
+        <div class="pref-chip" onclick="togglePref('rest', this)">🚗 จุดพักรถวิวสวย (PA/SA)</div>
+      </div>
+
+      <div style="font-size:11px; color:var(--sub); margin-top:4px;">ความต้องการเพิ่มเติม (พิมพ์โจทย์ให้ AI ช่วยจัด)</div>
+      <textarea id="customPromptInput" class="form-input" rows="2" placeholder="เช่น แวะกินเนื้อย่าง Sakai ชินจูกุ, แวะจุดพักรถ Umihotaru..."></textarea>
+
+      <div style="font-size:11px; color:var(--sub); margin-top:2px;">รูปแบบการเดินทาง</div>
+      <select id="transportSelect" class="form-input">
+        <option value="rental_car">🚗 เช่ารถขับเอง (เน้นเบอร์โทร GPS รถเช่า Car Navi)</option>
+        <option value="public_pass">🚆 รถไฟสาธารณะ & บัตรรถไฟ (Pass)</option>
+      </select>
+
+      <!-- ผูกฟังก์ชัน startAppPlanner() ตรงๆ ไม่พึ่ง Listener -->
+      <button type="button" class="btn-main" onclick="startAppPlanner()">
+        เริ่มจัดตารางท่องเที่ยวรายวัน →
+      </button>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: DAILY PLANNER -->
+  <div id="screenPlanner" class="screen-view">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:10px;">
+      <div>
+        <h2 style="font-size:20px; font-weight:700;">ตารางเที่ยวรายวัน</h2>
+        <p style="font-size:12px; color:var(--sub);">แตะสถานที่เพื่อดูคำอธิบาย หรือกดปุ่มด้านล่างให้ AI จัดสรร</p>
+      </div>
+    </div>
+
+    <button type="button" class="btn-ai-magic" onclick="runAiAutoPlan()">
+      ✨ ให้ AI จัดแนวทางวิ่งและสถานที่ให้อัตโนมัติ (Smart Route Engine)
+    </button>
+
+    <div id="calendarTabsContainer" class="cal-tabs"></div>
+
+    <div id="crossZoneWarning" class="alert-banner">
+      <strong>⚠️ แจ้งเตือน: เส้นทางข้ามโซนห่างกันเกินไป</strong>
+      <span id="crossZoneText"></span>
+    </div>
+
+    <div id="overloadWarning" class="alert-banner">
+      <strong>⚠️ แจ้งเตือน: แผนการเดินทางวันนี้แน่นเกินไป</strong>
+      <span id="overloadText"></span>
+    </div>
+
+    <div id="aiSuggestionBox" style="display:none; background:#F0F7FF; border:1px solid rgba(0,113,227,0.15); border-radius:12px; padding:12px; margin-bottom:14px;">
+      <div style="font-size:11px; font-weight:700; color:var(--accent);">✨ AI แนะนำสถานที่เชื่อมต่อสำหรับวันนี้</div>
+      <div id="aiSuggestionContent" style="margin-top:6px;"></div>
+    </div>
+
+    <div id="zonesListContainer"></div>
+
+    <button type="button" class="btn-main" onclick="changeScreen('screenRoute')">
+      ดูสรุปเส้นทางประจำวันนี้ →
+    </button>
+  </div>
+
+  <!-- SCREEN 3: ROUTE & MAPS -->
+  <div id="screenRoute" class="screen-view">
+    <h2 style="font-size:20px; font-weight:700; margin-bottom:4px;">เส้นทางประจำวัน</h2>
+    <p id="routeDaySubtitle" style="font-size:12px; color:var(--sub); margin-bottom:12px;"></p>
+
+    <div class="card">
+      <div style="font-size:12px; color:var(--sub); margin-bottom:8px;" id="originDisplayTag"></div>
+      <div id="routeTimelineContainer"></div>
+    </div>
+
+    <button type="button" class="btn-sub" onclick="optimizeTspRoute()">
+      ✨ AI จัดลำดับพิกัดลดการขับรถย้อนทาง (TSP Route)
+    </button>
+    <a id="googleMapsBtn" href="#" target="_blank" class="btn-main" style="margin-top:10px; display:none;">
+      📍 เปิดนำทางบน Google Maps App
+    </a>
+  </div>
+
+  <!-- SCREEN 4: SCRAPBOOK -->
+  <div id="screenScrapbook" class="screen-view">
+    <h2 style="font-size:20px; font-weight:700; margin-bottom:4px;">บันทึกภาพถ่ายประจำวัน</h2>
+    <p style="font-size:12px; color:var(--sub); margin-bottom:12px;">ส่งภาพเข้า Google Drive โฟลเดอร์ที่กำหนด</p>
+
+    <div class="card">
+      <input type="file" id="photoInput" accept="image/*" class="form-input" onchange="handleCompress(this)">
+      <img id="photoPreview" style="width:100%; height:180px; object-fit:cover; border-radius:8px; display:none; margin-bottom:10px;">
+      <textarea id="tripNotesInput" class="form-input" rows="4" placeholder="เขียนบันทึกความทรงจำในวันนี้..."></textarea>
+      <button type="button" class="btn-main" onclick="uploadTripCloud()">บันทึกลง Google Sheets และ Drive</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 5: EXPENSES -->
+  <div id="screenExpenses" class="screen-view">
+    <h2 style="font-size:20px; font-weight:700; margin-bottom:4px;">บันทึกค่าใช้จ่าย</h2>
+    <p style="font-size:12px; color:var(--sub); margin-bottom:12px;">คำนวณ JPY เป็น THB อัตโนมัติ</p>
+
+    <div class="card">
+      <select id="expenseCat" class="form-input">
+        <option value="ค่าตั๋ว/Pass">ค่าตั๋ว / พาสรถไฟ / ทางด่วน</option>
+        <option value="อาหาร">ค่าอาหาร / สตาร์บัคส์</option>
+        <option value="ช้อปปิ้ง">ช้อปปิ้ง / ของฝาก</option>
+        <option value="ที่พัก">ที่พัก / ออนเซ็น</option>
+      </select>
+      <input type="number" id="expenseAmount" class="form-input" placeholder="จำนวนเงินเยน (¥)">
+      <button type="button" class="btn-main" onclick="recordExpenseCloud()">บันทึกรายจ่าย</button>
+      <div id="expenseStatus" style="font-size:13px; color:var(--sub); margin-top:10px; text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="tabbar">
+    <button class="tab-btn active" onclick="changeScreen('screenLanding')">⛩️<br>เริ่ม</button>
+    <button class="tab-btn" onclick="changeScreen('screenPlanner')">📅<br>รายวัน</button>
+    <button class="tab-btn" onclick="changeScreen('screenRoute')">🗺️<br>เส้นทาง</button>
+    <button class="tab-btn" onclick="changeScreen('screenScrapbook')">📷<br>ภาพถ่าย</button>
+    <button class="tab-btn" onclick="changeScreen('screenExpenses')">💳<br>งบ</button>
+  </nav>
+
+</div>
+
+<!-- Modal Popup -->
+<div id="detailModal" class="modal" onclick="if(event.target.id==='detailModal') closeModal();">
+  <div class="modal-box">
+    <div style="width:36px; height:4px; background:#D1D1D6; border-radius:2px; margin:0 auto 12px auto;"></div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <h3 id="mTitle" style="font-size:18px; font-weight:700;"></h3>
+        <p id="mSub" style="font-size:12px; color:var(--sub); margin-top:2px;"></p>
+      </div>
+      <span id="mZone" style="font-size:11px; background:#F5F5F7; padding:4px 10px; border-radius:6px; color:var(--sub);"></span>
+    </div>
+
+    <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px; font-size:13px; line-height:1.5;">
+      <div style="background:#EBF5FF; padding:10px 12px; border-radius:8px;">
+        <strong style="color:var(--accent);">🚗 เบอร์โทร GPS รถเช่า (Car Navi Search):</strong>
+        <p id="mPhone" style="font-size:16px; font-weight:700; color:#1D1D1F; margin-top:3px; letter-spacing:0.04em;"></p>
+      </div>
+      <div style="background:#F5F5F7; padding:10px 12px; border-radius:8px;">
+        <strong>📖 บทบรรยายสถานที่ & จุดเด่น:</strong>
+        <p id="mNarrative" style="margin-top:3px; color:#1D1D1F;"></p>
+      </div>
+      <div style="background:#F5F5F7; padding:10px 12px; border-radius:8px;">
+        <strong>💡 คำแนะนำการเดินทาง & ลานจอดรถ:</strong>
+        <p id="mTips" style="margin-top:3px; color:#1D1D1F;"></p>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--sub); padding:2px 4px;">
+        <span>เวลาที่ควรใช้: <strong id="mDuration" style="color:#1D1D1F;"></strong> นาที</span>
+        <span>พิกัด: <span id="mCoords"></span></span>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:16px;">
+      <button id="mActionBtn" class="btn-main" style="flex:1;" onclick="toggleCurrentModalLoc()">+ เลือกใส่วันนี้</button>
+      <button class="btn-sub" style="flex:0 0 70px; margin-top:0;" onclick="closeModal()">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxdIjjFkb2D9-XSuL22RSEzAK-oMA54p-vDeve97UWt2w0RPzcOS1WR_5BaETqBNJgkJQ/exec";
+
+const ORIGIN_MAP = {
+  "NRT": { name: "สนามบินนาริตะ (Narita Airport)", lat: 35.771986, lng: 140.392850 },
+  "HND": { name: "สนามบินฮาเนดะ (Haneda Airport)", lat: 35.549393, lng: 139.779839 },
+  "SHINJUKU": { name: "สถานีรถไฟชินจูกุ (Shinjuku Station)", lat: 35.689607, lng: 139.700571 },
+  "TOKYO": { name: "สถานีรถไฟโตเกียว (Tokyo Station)", lat: 35.681236, lng: 139.767125 },
+  "KAWAGUCHIKO": { name: "สถานีรถไฟคาวากูจิโกะ (Kawaguchiko)", lat: 35.498188, lng: 138.768784 }
+};
+
+// ข้อมูลสถานที่จริงจาก LM ไม่มีการประกาศคีย์ซ้ำเด็ดขาด[cite: 3]
+const PLACES = [
+  { id: "KW_001", name: "เจดีย์แดงชูเรโตะ", sub: "Chureito Pagoda", zone: "Kawaguchiko", category: "fuji,photo", lat: 35.5013, lng: 138.8014, phone: "0555-21-1000", duration: 80, narrative: "เจดีย์ห้าชั้นสีแดงบนเนินเขาอาราคุระยามะ จุดชมวิวฟูจิคู่เจดีย์และซากุระหรือใบไม้เปลี่ยนสีอันโด่งดังระดับโปสเตอร์ญี่ปุ่น[cite: 3, 12]", tips: "เดินขึ้นบันได 400 ขั้น ลานจอดรถฟรีบริเวณทางขึ้น[cite: 3, 12]" },
+  { id: "KW_002", name: "อุโมงค์ใบเมเปิ้ล (Momiji)", sub: "Momiji Corridor", zone: "Kawaguchiko", category: "fuji,photo", lat: 35.5262, lng: 138.7658, phone: "0555-72-3168", duration: 50, narrative: "แนวต้นเมเปิ้ลริมลำธารที่โค้งเข้าหากันจนเกิดเป็นอุโมงค์สีแดงส้มทองอร่ามในช่วงฤดูใบไม้ร่วง พร้อมเทศกาลของกินท้องถิ่น[cite: 3]", tips: "Retro Bus ป้าย 17 หรือจอดรถที่ลานจอดริมทะเลสาบฝั่งตรงข้าม[cite: 3]" },
+  { id: "KW_003", name: "สวนโออิชิ (Oishi Park)", sub: "Oishi Park", zone: "Kawaguchiko", category: "photo,fuji", lat: 35.5233, lng: 138.7461, phone: "0555-76-8230", duration: 60, narrative: "สวนสาธารณะริมทะเลสาบที่มีแปลงดอกไม้ตามฤดูกาล ทุ่งลาเวนเดอร์และพุ่มโคเชีย พร้อมฉากหลังเป็นฟูจิเต็มตา[cite: 3]", tips: "มีซอฟต์ครีมผลไม้ ศูนย์ของฝาก และลานจอดรถกว้างขวางฟรี" },
+  { id: "KW_004", name: "หมู่บ้านน้ำใส โอชิโนะ ฮักไก", sub: "Oshino Hakkai", zone: "Kawaguchiko", category: "culture,food", lat: 35.4597, lng: 138.8328, phone: "0555-84-4222", duration: 75, narrative: "หมู่บ้านโบราณที่มีบ่อน้ำผุดใสบริสุทธิ์จากการละลายของหิมะฟูจิ ลึกถึง 8 เมตร สะท้อนเงาผืนฟ้าและฝูงปลาแหวกว่าย[cite: 3]", tips: "ชิมโมจิย่างไส้ถั่วแดงร้อนๆ ไดฟูกุสตรอว์เบอร์รี และปลาย่างเกลือสด ลานจอดรถเอกชนรอบหมู่บ้าน[cite: 3]" },
+  { id: "KW_005", name: "หมู่บ้านโบราณไซโกะ", sub: "Saiko Iyashi no Sato Nenba", zone: "Kawaguchiko", category: "culture,photo", lat: 35.5002, lng: 138.6575, phone: "0555-20-4677", duration: 75, narrative: "หมู่บ้านจำลองย้อนยุคริมทะเลสาบไซโกะ บ้านมุงหญ้าคาคายาบูกิกว่า 20 หลังวิวฟูจิ จัดแสดงเครื่องปั้นดินเผาและผ้าทอ[cite: 3, 12]", tips: "มีมุมถ่ายรูปย้อนยุคคู่ฟูจิ ร้านไอศกรีมมันหวาน ที่จอดรถสะดวก" },
+  { id: "KW_006", name: "หาดฮิราโนะ ยามานากาโกะ", sub: "Hirano Beach (Yamanakako)", zone: "Kawaguchiko", category: "photo,fuji", lat: 35.4217, lng: 138.9056, phone: "0555-62-9977", duration: 45, narrative: "หาดริมทะเลสาบยามานากาโกะ จุดที่มีฝูงหงส์ขาวและนกเป็ดน้ำลอยอยู่หน้าฟูจิใหญ่เต็มตา[cite: 3]", tips: "ขับรถลงไปจอดริมหาดได้ฟรี เหมาะแก่การแวะถ่ายภาพช่วงเช้าและพระอาทิตย์ขึ้น[cite: 3]" },
+  { id: "KW_007", name: "ทะเลสาบโมโตซุ (ธนบัตร 1,000 เยน)", sub: "Lake Motosu Viewpoint", zone: "Kawaguchiko", category: "fuji,photo", lat: 35.4746, lng: 138.5772, phone: "0555-87-2111", duration: 40, narrative: "จุดชมวิวยอดเขาฟูจิสะท้อนเงาผิวน้ำ มุมถ่ายรูปองศาตรงตามภาพหลังธนบัตร 1,000 เยนของญี่ปุ่น[cite: 3]", tips: "รถยนต์ส่วนตัวสะดวกสุด มีจุดจอดรถริมถนนชมวิว" },
+  { id: "KW_008", name: "ทะเลสาบโชจิ (ลานกางเต็นท์ริมหาด)", sub: "Lake Shoji Campsite", zone: "Kawaguchiko", category: "fuji,photo", lat: 35.4912, lng: 138.6083, phone: "0555-87-2005", duration: 45, narrative: "ทะเลสาบที่เล็กที่สุดในบรรดา 5 ทะเลสาบ โด่งดังด้วยมุม 'ฟูจิอุ้มลูก' และสามารถขับรถลงไปจอดริมหาดถ่ายรูปกับรถคู่ฟูจิได้[cite: 3]", tips: "ขับรถลงไปริมหาดได้ มีที่จอดรถธรรมชาติฟรี[cite: 3]" },
+  { id: "KW_009", name: "ร้านเทมปูระ Fuji Idaten", sub: "Fuji Tempura Idaten", zone: "Kawaguchiko", category: "food", lat: 35.4988, lng: 138.7686, phone: "0555-72-8700", duration: 50, narrative: "ร้านเทมปูระขึ้นชื่อใกล้สถานีคาวากูจิโกะ ข้าวหน้าเทมปูระกุ้งตัวโต ข้าวหน้าปลาไหล และฟูจิยามะอุด้งร้อน[cite: 3]", tips: "มีที่จอดรถหน้าร้าน เดินเพียง 5 นาทีจากสถานี[cite: 3]" },
+
+  { id: "SZ_001", name: "Starbucks วิวฟูจิ (Fujikawa SA)", sub: "Starbucks Fujikawa SA", zone: "Shizuoka", category: "cafe,rest,fuji", lat: 35.1585, lng: 138.6185, phone: "0545-81-2285", duration: 40, narrative: "สตาร์บัคส์บนจุดพักรถทางด่วนโทเม (Tomei Expwy) ออกแบบด้วยกระจกบานใหญ่ชมวิวฟูจิแบบพาโนรามาขณะจิบกาแฟ[cite: 3]", tips: "อยู่บนจุดพักรถทางด่วนมุ่งหน้าชิซูโอกะ ลานจอดรถฟรีขนาดใหญ่และร้านของฝาก[cite: 3]" },
+  { id: "SZ_002", name: "จุดพักรถที่ราบสูงอาซากิริ", sub: "Asagiri Kogen Rest Area", zone: "Shizuoka", category: "rest,food,fuji", lat: 35.4124, lng: 138.5866, phone: "0544-52-2230", duration: 45, narrative: "จุดพักรถเชิงเขาฟูจิบนที่ราบสูงอาซากิริ มีสะพานแดง ลานสนามเด็กเล่น และร้านจำหน่ายผลิตภัณฑ์นมสดแท้[cite: 1, 3]", tips: "ที่จอดรถฟรี แวะชิมซอฟต์ครีมนมสดและข้าวแกงกะหรี่เนื้อกวาง[cite: 1, 3]" },
+  { id: "SZ_003", name: "ฟาร์มมาไกโนะ (Makaino Farm)", sub: "Makaino Farm", zone: "Shizuoka", category: "photo,fuji,food", lat: 35.3958, lng: 138.5889, phone: "0544-54-0342", duration: 90, narrative: "ฟาร์มปศุสัตว์วิวฟูจิ ไฮไลท์คือชิงช้า Heidi’s Swing ถ่ายรูปคู่ฟูจิ เคาน์เตอร์ชมวิวสูง 4 เมตร และกิจกรรมรีดนมวัว จูงแพะ[cite: 1, 3]", tips: "มีลานจอดรถฟรีขนาดใหญ่ ซอฟต์ครีมนมสดเข้มข้นอร่อยมาก[cite: 1, 3]" },
+  { id: "SZ_004", name: "ศาลเจ้าฟูจิซัง ฮงกู เซ็นเก็น", sub: "Fujisan Hongu Sengen Taisha", zone: "Shizuoka", category: "culture,photo", lat: 35.2263, lng: 138.6111, phone: "0544-27-2002", duration: 60, narrative: "ศาลเจ้ามรดกโลกอายุกว่าพันปี ศูนย์กลางบูชาเทพีแห่งฟูจิ มีบ่อน้ำศักดิ์สิทธิ์วากุตามะ สะพานแดง และเสี่ยงทายใบคำทำนายลอยน้ำซากุระ[cite: 1, 3, 5]", tips: "เดินไปตรอก Omiya Yokocho ชิมยากิโซบะฟูจิโนะมิยะได้ มีที่จอดรถหน้าศาลเจ้า[cite: 3]" },
+  { id: "SZ_005", name: "จุดถ่ายรูปชินคันเซ็นคู่ฟูจิ", sub: "Gakunan Fujioka Viewpoint", zone: "Shizuoka", category: "photo", lat: 35.1855, lng: 138.7188, phone: "0545-53-5111", duration: 45, narrative: "จุดชมวิวในตำนานริมทางรถไฟสายกากูนัน จุดที่สามารถถ่ายภาพรถไฟหัวกระสุนชินคันเซ็นวิ่งผ่านโดยมีภูเขาไฟฟูจิเป็นฉากหลัง[cite: 3, 5]", tips: "แนะนำขับรถมาจอดบริเวณจุดชมวิว หรือนั่งรถไฟสาย Gakunan Railway ลงสถานี Gakunan-Fujioka[cite: 3, 5]" },
+
+  { id: "HK_001", name: "จุดพักรถกลางอ่าวโตเกียว Umihotaru", sub: "Umihotaru PA", zone: "Hakone", category: "rest,photo,food", lat: 35.4638, lng: 139.8744, phone: "0438-41-7401", duration: 60, narrative: "จุดพักรถบนทางด่วนแห่งเดียวในโลกที่ตั้งอยู่บนเกาะเทียมกลางทะเลอ่าวโตเกียว ชมวิวพาโนรามา 360 องศา อาคาร 5 ชั้นพร้อมร้านค้าและตู้เกม[cite: 1, 3]", tips: "ทางด่วน Tokyo Bay Aqua-Line เชื่อมคาวาซากิกับชิบะ ลานจอดรถขนาดใหญ่บนเกาะ[cite: 1, 3]" },
+  { id: "HK_002", name: "พิพิธภัณฑ์กลางแจ้งฮาโกเนะ", sub: "Hakone Open-Air Museum", zone: "Hakone", category: "photo,culture", lat: 35.2447, lng: 139.0513, phone: "0460-82-1161", duration: 90, narrative: "พิพิธภัณฑ์ศิลปะกลางแจ้ง ไฮไลท์คือหอคอยสเตนกลาส Symphonic Sculpture บันไดเวียน และโซน Picasso Pavilion[cite: 3]", tips: "ส่วนลด 200 เยนด้วย Hakone Free Pass มีที่จอดรถสะดวกสบาย[cite: 3]" },
+  { id: "HK_003", name: "หุบเขาเดือดโอวาคุดานิ", sub: "Owakudani", zone: "Hakone", category: "fuji,food", lat: 35.2427, lng: 139.0195, phone: "0460-84-9605", duration: 60, narrative: "หุบเขาภูเขาไฟที่มีควันกำมะถันพุ่งขึ้น ลิ้มลอง 'ไข่ดำ' ต้มน้ำแร่ออนเซ็นธรรมชาติ บำรุงสุขภาพอายุยืน[cite: 3]", tips: "นั่งกระเช้า Ropeway ฟรีด้วยพาส หรือขับรถขึ้นลานจอดรถใหญ่[cite: 3]" },
+  { id: "HK_004", name: "ทะเลสาบอาชิ & ศาลเจ้าฮาโกเนะ", sub: "Lake Ashi & Shrine", zone: "Hakone", category: "culture,photo", lat: 35.2039, lng: 139.0289, phone: "0460-83-7123", duration: 75, narrative: "ล่องเรือโจรสลัดชมวิวฟูจิ และเดินไปถ่ายรูปกับเสาโทริอิสีแดงริมทะเลสาบของศาลเจ้าฮาโกเนะ[cite: 3]", tips: "เรือโจรสลัดฟรีด้วยพาส ลานจอดรถฟรีหน้าศาลเจ้า[cite: 3]" },
+
+  { id: "KM_001", name: "วัดพระใหญ่ไดบุทสึ (โคโตกุอิน)", sub: "Kotoku-in", zone: "Kamakura", category: "culture,photo", lat: 35.3168, lng: 139.5357, phone: "0467-22-0703", duration: 50, narrative: "พระพุทธรูปอมิตาภะสัมฤทธิ์กลางแจ้งขนาดใหญ่สูงกว่า 11.3 เมตร อายุกว่า 750 ปี สมบัติชาติญี่ปุ่น[cite: 3]", tips: "ลงสถานี Hase รถไฟสาย Enoden มีลานจอดรถเอกชนรอบวัด[cite: 3]" },
+  { id: "KM_002", name: "ทางรถไฟสถานีโคโคมาเอะ", sub: "Kamakura-Kokomae", zone: "Kamakura", category: "photo", lat: 35.3068, lng: 139.5005, phone: "0466-24-2711", duration: 30, narrative: "จุดตัดทางรถไฟเลียบทะเลฉากเปิดอนิเมะ Slam Dunk อันโด่งดังระดับโลก[cite: 3, 11]", tips: "ห้ามยืนขวางบนถนนรถวิ่ง ถ่ายภาพบนฟุตบาทอย่างปลอดภัย[cite: 3, 11]" },
+  { id: "KM_003", name: "เกาะเอโนชิมะ (Enoshima)", sub: "Enoshima Island", zone: "Kamakura", category: "food,culture,photo", lat: 35.3006, lng: 139.4808, phone: "0466-22-4141", duration: 120, narrative: "เกาะท่องเที่ยวเชื่อมด้วยสะพาน มีศาลเจ้าเบนไซเตง ข้าวหน้าปลาชิราซุสด และทาโกะเซมเบ้ปลาหมึกยักษ์[cite: 3]", tips: "ระวังเหยี่ยวโฉบอาหารขณะถือเดินทาน มีอาคารจอดรถขนาดใหญ่บริเวณทางเข้าเกาะ[cite: 11]" },
+
+  { id: "TK_001", name: "ตลาดปลาโทโยสุ โซนใหม่ (Senkyaku Banrai)", sub: "Toyosu Senkyaku Banrai", zone: "Tokyo", category: "food,culture", lat: 35.6481, lng: 139.7845, phone: "03-3533-1515", duration: 90, narrative: "ถนนคนเดินอาหารทะเลสไตล์เอโดะย้อนยุค ซูชิสด ไข่หวานย่างร้อนๆ 300 เยน และข้าวหน้าปลาทูน่า/แซลมอน[cite: 2, 3]", tips: "เชื่อมต่อสถานี Shijo-mae มีอาคารจอดรถในร่มขนาดใหญ่" },
+  { id: "TK_002", name: "ถนนแปะก๊วย เมจิจิงกู ไกเอน", sub: "Meiji Jingu Gaien", zone: "Tokyo", category: "photo", lat: 35.6749, lng: 139.7188, phone: "03-3401-0312", duration: 50, narrative: "อุโมงค์ต้นแปะก๊วย 146 ต้นเปลี่ยนเป็นสีเหลืองทองอร่ามทอดยาวสองข้างทาง พร้อมไฟส่องสว่างยามเย็น[cite: 2, 3]", tips: "Metro สถานี Aoyama-Itchome ทางออก 5 หรือจอดรถตามมิเตอร์ริมถนน[cite: 2]" },
+  { id: "TK_003", name: "ร้านยากินิกุเนื้อย่าง Sakai ชินจูกุ", sub: "Sakai Yakiniku Shinjuku", zone: "Tokyo", category: "food", lat: 35.6938, lng: 139.7025, phone: "03-3209-4129", duration: 75, narrative: "ร้านบุฟเฟต์เนื้อย่างพรีเมียมยอดฮิตใจกลางชินจูกุ ย่านคาบูกิโจ[cite: 1, 3]", tips: "ใกล้สถานีชินจูกุ แนะนำจองโต๊ะหรือไปช่วงหัวค่ำ" },
+  { id: "TK_004", name: "Starbucks คาวาโกเอะ เมืองเก่า", sub: "Starbucks Kawagoe", zone: "Kawagoe", category: "cafe,culture", lat: 35.9234, lng: 139.4828, phone: "049-228-5601", duration: 45, narrative: "สตาร์บัคส์บ้านไม้โบราณเอโดะกลมกลืนกับชุมชน Little Edo ด้านหลังมีสวนญี่ปุ่นและเบาะนั่งรับลม[cite: 2]", tips: "จอดรถลานจอดกลางเมืองคาวาโกเอะ แล้วเดินเที่ยวต่อถนนคนเดินขนมหวาน[cite: 2]" },
+
+  { id: "IB_001", name: "ตลาดปลานากะมินาโตะ (Nakaminato)", sub: "Nakaminato Fish Market", zone: "Ibaraki", category: "food", lat: 36.3456, 140.5982, phone: "029-263-7811", duration: 75, narrative: "ตลาดปลาติดชายฝั่งทะเล ข้าวด้งทูน่า/อูนิสดๆ ซุปปูร้อนๆ และหอยนางรมสดแกะทานหน้าร้าน[cite: 3, 9]", tips: "ลานจอดรถริมทะเลกว้างขวาง อาหารทะเลสดใหม่ส่งตรงวันต่อวัน" },
+  { id: "IB_002", name: "หมู่บ้านเกษตรมันหวาน Namegata", sub: "Namegata Farmers Village", zone: "Ibaraki", category: "culture,food", lat: 35.9984, 140.4851, phone: "0299-87-1130", duration: 90, narrative: "โรงเรียนประถมเก่ารีโนเวทเป็นพิพิธภัณฑ์มันหวาน คาเฟ่ Farm to Table และกิจกรรมขุดมันหวาน[cite: 3, 10]", tips: "ขับรถยนต์ส่วนตัวสะดวกสุด มีที่จอดรถฟรีและขนมหวานของฝากมากมาย" },
+  { id: "IB_003", name: "สวนดอกไม้ฮิตาชิ ซีไซด์ พาร์ค", sub: "Hitachi Seaside Park", zone: "Ibaraki", category: "photo", lat: 36.4011, lng: 140.5986, phone: "029-265-9001", duration: 100, narrative: "สวนดอกไม้ขนาดใหญ่ริมทะเล 4 ฤดูกาล เช่น ทุ่งดอกเนโมฟีลาสีฟ้าคราม และทุ่งพุ่มโคเชียสีแดง[cite: 3, 8]", tips: "มีจักรยานให้เช่าปั่นรอบสวน ลานจอดรถขนาดใหญ่" }
+];
+
+let app = {
+  startDate: "2026-11-02",
+  endDate: "2026-11-08",
+  totalDays: 7,
+  activeDay: 1,
+  originKey: "NRT",
+  daysPlan: {},
+  activeModalLoc: null,
+  base64Photo: "",
+  selectedStyles: ["fuji", "food"],
+  customPrompt: ""
+};
+
+function togglePref(styleKey, elem) {
+  const idx = app.selectedStyles.indexOf(styleKey);
+  if (idx > -1) {
+    app.selectedStyles.splice(idx, 1);
+    elem.classList.remove("active");
+  } else {
+    app.selectedStyles.push(styleKey);
+    elem.classList.add("active");
+  }
+}
+
+// ใช้ Date.UTC ป้องกัน Timezone Offset พัง
+function calcDuration() {
+  const s = document.getElementById("startDateInput").value;
+  const e = document.getElementById("endDateInput").value;
+  const label = document.getElementById("durationLabel");
+  if (!s || !e) return;
+
+  const sp = s.split("-");
+  const ep = e.split("-");
+  const t1 = Date.UTC(sp[0], sp[1] - 1, sp[2]);
+  const t2 = Date.UTC(ep[0], ep[1] - 1, ep[2]);
+
+  if (t2 < t1) {
+    label.innerText = "วันสิ้นสุดต้องไม่อยู่ก่อนวันเริ่ม";
+    label.style.color = "var(--danger)";
+    return;
+  }
+
+  const diff = Math.round((t2 - t1) / (1000 * 60 * 60 * 24)) + 1;
+  app.totalDays = Math.max(1, diff);
+  label.innerText = `${app.totalDays} วัน (${app.totalDays - 1} คืน)`;
+  label.style.color = "var(--accent)";
+}
+
+// ฟังก์ชันสลับหน้าจอ (ควบคุมผ่าน style.display โดยตรง)
+function changeScreen(screenId) {
+  const screens = ["screenLanding", "screenPlanner", "screenRoute", "screenScrapbook", "screenExpenses"];
+  screens.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (id === screenId) ? "flex" : "none";
+  });
+
+  const tabBtns = document.querySelectorAll(".tab-btn");
+  tabBtns.forEach(b => b.classList.remove("active"));
+  const idx = screens.indexOf(screenId);
+  if (idx > -1 && tabBtns[idx]) tabBtns[idx].classList.add("active");
+
+  window.scrollTo(0, 0);
+}
+
+// เริ่มต้นสร้างแผน (กดแล้วเปลี่ยนหน้าจอ 100%)
+function startAppPlanner() {
+  const sStr = document.getElementById("startDateInput").value || "2026-11-02";
+  const eStr = document.getElementById("endDateInput").value || "2026-11-08";
+
+  app.startDate = sStr;
+  app.endDate = eStr;
+
+  const sp = sStr.split("-");
+  const ep = eStr.split("-");
+  const t1 = Date.UTC(sp[0], sp[1] - 1, sp[2]);
+  const t2 = Date.UTC(ep[0], ep[1] - 1, ep[2]);
+  app.totalDays = Math.max(1, Math.round((t2 - t1) / (1000 * 60 * 60 * 24)) + 1);
+
+  app.originKey = document.getElementById("originKeySelect").value || "NRT";
+  app.customPrompt = document.getElementById("customPromptInput").value || "";
+  app.activeDay = 1;
+
+  app.daysPlan = {};
+  for (let i = 1; i <= app.totalDays; i++) {
+    app.daysPlan[i] = [];
+  }
+
+  renderTabs();
+  renderZonesList();
+  changeScreen("screenPlanner");
+}
+
+function getDayLabel(idx) {
+  const sp = app.startDate.split("-");
+  const d = new Date(Date.UTC(sp[0], sp[1] - 1, sp[2]));
+  d.setUTCDate(d.getUTCDate() + (idx - 1));
+  const m = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+  return `${d.getUTCDate()} ${m[d.getUTCMonth()]}`;
+}
+
+function renderTabs() {
+  const container = document.getElementById("calendarTabsContainer");
+  if (!container) return;
+  container.innerHTML = "";
+
+  for (let i = 1; i <= app.totalDays; i++) {
+    const tab = document.createElement("div");
+    tab.className = `day-pill ${i === app.activeDay ? 'active' : ''}`;
+    tab.onclick = () => selectDayView(i);
+    tab.innerHTML = `
+      <div class="d-name">Day ${i}</div>
+      <div class="d-date">${getDayLabel(i)}</div>
+    `;
+    container.appendChild(tab);
+  }
+}
+
+function selectDayView(dayIdx) {
+  app.activeDay = dayIdx;
+  renderTabs();
+  renderZonesList();
+  renderRouteList();
+}
+
+function renderZonesList() {
+  const container = document.getElementById("zonesListContainer");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const usedIds = new Set();
+  for (let d = 1; d <= app.totalDays; d++) {
+    if (app.daysPlan[d]) {
+      app.daysPlan[d].forEach(l => usedIds.add(l.id));
+    }
+  }
+
+  validateDayConstraints();
+  updateCascadingNotice(usedIds);
+
+  const zones = {
+    "Kawaguchiko": "โซนคาวากูจิโกะ & 5 ทะเลสาบฟูจิ 🗻",
+    "Shizuoka": "โซนชิซูโอกะ, ฟูจิโนะมิยะ & จุดพักรถ ☕",
+    "Hakone": "โซนฮาโกเนะ & ทางด่วนอ่าวโตเกียว ♨️",
+    "Kamakura": "โซนคามาคุระ & เอโนชิมะ 🌊",
+    "Tokyo": "โซนกรุงโตเกียว (Tokyo Highlights) 🗼",
+    "Kawagoe": "โซนเมืองเก่าคาวาโกเอะ (Little Edo) 🏯",
+    "Ibaraki": "โซนอิบารากิ & ตลาดปลานากะมินาโตะ 🐟"
+  };
+
+  const todayList = app.daysPlan[app.activeDay] || [];
+  const todayIds = new Set(todayList.map(l => l.id));
+
+  Object.keys(zones).forEach(zKey => {
+    const list = PLACES.filter(p => p.zone === zKey);
+    if (list.length === 0) return;
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.padding = "12px 16px";
+    card.innerHTML = `<div style="font-size:14px; font-weight:700; margin-bottom:8px;">${zones[zKey]}</div><div id="z-box-${zKey}"></div>`;
+    container.appendChild(card);
+
+    const rowBox = card.querySelector(`#z-box-${zKey}`);
+    list.forEach(item => {
+      const isToday = todayIds.has(item.id);
+      const isOther = usedIds.has(item.id) && !isToday;
+
+      const row = document.createElement("div");
+      row.className = "loc-row";
+      row.style.opacity = isOther ? "0.45" : "1";
+      row.innerHTML = `
+        <div class="loc-info" onclick="openDetails('${item.id}')">
+          <div class="loc-name">${item.name}</div>
+          <div class="loc-meta">${item.sub} • ${item.duration} นาที</div>
+          <div class="gps-tag">📞 GPS: ${item.phone}</div>
+        </div>
+        <button type="button" class="btn-add ${isToday ? 'selected' : ''}" onclick="togglePlace('${item.id}')">
+          ${isToday ? 'นำออก' : (isOther ? 'จัดวันอื่นแล้ว' : '+ เลือก')}
+        </button>
+      `;
+      rowBox.appendChild(row);
+    });
+  });
+}
+
+function validateDayConstraints() {
+  const currentList = app.daysPlan[app.activeDay] || [];
+  const crossAlert = document.getElementById("crossZoneWarning");
+  const crossText = document.getElementById("crossZoneText");
+  const overAlert = document.getElementById("overloadWarning");
+  const overText = document.getElementById("overloadText");
+
+  if (!crossAlert || !overAlert) return;
+
+  const zonesInDay = [...new Set(currentList.map(l => l.zone))];
+  const incompatiblePairs = [
+    ["Kawaguchiko", "Tokyo"],
+    ["Kawaguchiko", "Kamakura"],
+    ["Hakone", "Tokyo"],
+    ["Hakone", "Kamakura"],
+    ["Ibaraki", "Shizuoka"]
+  ];
+
+  let hasConflict = false;
+  let conflictDesc = "";
+  for (let pair of incompatiblePairs) {
+    if (zonesInDay.includes(pair[0]) && zonesInDay.includes(pair[1])) {
+      hasConflict = true;
+      conflictDesc = `คุณเลือกสถานที่ใน <strong>${pair[0]}</strong> ร่วมกับ <strong>${pair[1]}</strong> ในวันเดียวกัน ซึ่งอยู่ห่างกันเกิน 100 กม. ใช้เวลาเดินทางไป-กลับกว่า 4-5 ชม. แนะนำให้แยกคนละวัน`;
+      break;
+    }
+  }
+
+  crossAlert.style.display = hasConflict ? "block" : "none";
+  if (hasConflict) crossText.innerHTML = conflictDesc;
+
+  let totalMinutes = 0;
+  currentList.forEach(l => totalMinutes += (l.duration || 60));
+  if (currentList.length > 1) totalMinutes += (currentList.length - 1) * 35;
+  const totalHours = (totalMinutes / 60).toFixed(1);
+
+  const isOver = (currentList.length >= 5 || totalMinutes > 540);
+  overAlert.style.display = isOver ? "block" : "none";
+  if (isOver) {
+    overText.innerHTML = `วันนี้คุณเลือกไปแล้ว <strong>${currentList.length} จุดแวะ</strong> (ประมาณเวลารวม <strong>${totalHours} ชม.</strong>) อาจทำให้เที่ยวไม่ทัน เหนื่อยล้าเกินไป แนะนำไม่เกิน 3-4 จุดต่อวัน`;
+  }
+}
+
+function updateCascadingNotice(usedIds) {
+  const box = document.getElementById("aiSuggestionBox");
+  const content = document.getElementById("aiSuggestionContent");
+  if (!box || !content) return;
+
+  const todayList = app.daysPlan[app.activeDay] || [];
+  let anchor = "";
+  if (todayList.length > 0) anchor = todayList[0].zone;
+  else if (app.activeDay > 1 && app.daysPlan[app.activeDay - 1]?.length > 0) {
+    anchor = app.daysPlan[app.activeDay - 1][0].zone;
+  }
+
+  const unused = PLACES.filter(p => !usedIds.has(p.id));
+  if (unused.length > 0) {
+    const rec = unused.find(p => p.zone === anchor) || unused[0];
+    box.style.display = "block";
+    content.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:13px; font-weight:700;">${rec.name} (${rec.zone})</div>
+          <div style="font-size:11px; color:var(--sub);">${rec.tips}</div>
+          <div class="gps-tag">📞 GPS: ${rec.phone}</div>
+        </div>
+        <button type="button" class="btn-add" onclick="togglePlace('${rec.id}')">+ ใส่วันนี้</button>
+      </div>
+    `;
+  } else {
+    box.style.display = "none";
+  }
+}
+
+function togglePlace(id) {
+  const item = PLACES.find(p => p.id === id);
+  if (!app.daysPlan[app.activeDay]) app.daysPlan[app.activeDay] = [];
+  const list = app.daysPlan[app.activeDay];
+  const idx = list.findIndex(l => l.id === id);
+
+  if (idx > -1) list.splice(idx, 1);
+  else list.push(item);
+
+  renderZonesList();
+  renderRouteList();
+}
+
+function openDetails(id) {
+  const item = PLACES.find(p => p.id === id);
+  if (!item) return;
+
+  app.activeModalLoc = item;
+  document.getElementById("mTitle").innerText = item.name;
+  document.getElementById("mSub").innerText = item.sub;
+  document.getElementById("mZone").innerText = item.zone;
+  document.getElementById("mPhone").innerText = item.phone;
+  document.getElementById("mNarrative").innerText = item.narrative;
+  document.getElementById("mTips").innerText = item.tips;
+  document.getElementById("mDuration").innerText = item.duration;
+  document.getElementById("mCoords").innerText = `${item.lat.toFixed(3)}, ${item.lng.toFixed(3)}`;
+
+  const todayList = app.daysPlan[app.activeDay] || [];
+  const isSelected = todayList.some(l => l.id === item.id);
+  const btn = document.getElementById("mActionBtn");
+  btn.innerText = isSelected ? "ลบออกจากวันนี้" : "+ เลือกใส่วันนี้";
+  btn.style.background = isSelected ? "var(--danger)" : "var(--accent)";
+
+  document.getElementById("detailModal").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("detailModal").style.display = "none";
+}
+
+function toggleCurrentModalLoc() {
+  if (app.activeModalLoc) {
+    togglePlace(app.activeModalLoc.id);
+    closeModal();
+  }
+}
+
+function runAiAutoPlan() {
+  const userPrompt = (app.customPrompt || "").toLowerCase();
+  const maxPlaces = 3;
+
+  const sequence = [
+    "Kawaguchiko",
+    "Shizuoka",
+    "Hakone",
+    "Kamakura",
+    "Tokyo",
+    "Kawagoe",
+    "Ibaraki"
+  ];
+
+  const used = new Set();
+
+  for (let d = 1; d <= app.totalDays; d++) {
+    const targetZone = sequence[(d - 1) % sequence.length];
+    let candidates = PLACES.filter(p => p.zone === targetZone && !used.has(p.id));
+    if (candidates.length === 0) candidates = PLACES.filter(p => p.zone === targetZone);
+
+    candidates.sort((a, b) => {
+      let sa = 0, sb = 0;
+      app.selectedStyles.forEach(s => {
+        if (a.category.includes(s)) sa += 2;
+        if (b.category.includes(s)) sb += 2;
+      });
+      if (userPrompt && userPrompt.includes(a.name.toLowerCase())) sa += 5;
+      if (userPrompt && userPrompt.includes(b.name.toLowerCase())) sb += 5;
+      return sb - sa;
+    });
+
+    let selected = candidates.slice(0, maxPlaces);
+
+    // TSP เรียงลำดับพิกัดลดการขับย้อนทาง
+    if (selected.length > 2) {
+      let pool = [...selected];
+      let sorted = [pool.shift()];
+      while (pool.length > 0) {
+        let curr = sorted[sorted.length - 1];
+        let nIdx = 0;
+        let minD = Infinity;
+        for (let i = 0; i < pool.length; i++) {
+          let dist = Math.hypot(curr.lat - pool[i].lat, curr.lng - pool[i].lng);
+          if (dist < minD) { minD = dist; nIdx = i; }
+        }
+        sorted.push(pool.splice(nIdx, 1)[0]);
+      }
+      selected = sorted;
+    }
+
+    selected.forEach(p => used.add(p.id));
+    app.daysPlan[d] = selected;
+  }
+
+  renderZonesList();
+  renderRouteList();
+  alert(`AI ได้จัดตารางท่องเที่ยว ${app.totalDays} วันครบถ้วน โดยเริ่มเดินทางจาก ${ORIGIN_MAP[app.originKey]?.name || "จุดเริ่มต้น"} และคัดสรรสถานที่ตามแนวทางที่เลือกเรียบร้อยแล้ว`);
+}
+
+function renderRouteList() {
+  const sub = document.getElementById("routeDaySubtitle");
+  const box = document.getElementById("routeTimelineContainer");
+  const mapBtn = document.getElementById("googleMapsBtn");
+  const originTag = document.getElementById("originDisplayTag");
+
+  const originInfo = ORIGIN_MAP[app.originKey] || ORIGIN_MAP["NRT"];
+
+  sub.innerText = `Day ${app.activeDay} • วันที่ ${getDayLabel(app.activeDay)}`;
+  originTag.innerHTML = `🚩 จุดออกเดินทางเริ่มต้น: <strong>${originInfo.name}</strong>`;
+  
+  const list = app.daysPlan[app.activeDay] || [];
+
+  if (list.length === 0) {
+    box.innerHTML = `<p style="text-align:center; color:var(--sub); font-size:13px; padding:10px 0;">ยังไม่มีสถานที่ใน Day ${app.activeDay}</p>`;
+    mapBtn.style.display = "none";
+    return;
+  }
+
+  box.innerHTML = "";
+  list.forEach((loc, idx) => {
+    const r = document.createElement("div");
+    r.style.display = "flex";
+    r.style.alignItems = "center";
+    r.style.padding = "8px 0";
+    r.style.borderBottom = (idx === list.length - 1) ? "none" : "1px solid var(--border)";
+    r.innerHTML = `
+      <div style="width:22px; height:22px; border-radius:50%; background:var(--text); color:#FFF; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-right:10px;">
+        ${idx + 1}
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:14px; font-weight:600;">${loc.name}</div>
+        <div style="font-size:11px; color:var(--sub);">${loc.zone} • ${loc.duration} นาที • 📞 ${loc.phone}</div>
+      </div>
+    `;
+    box.appendChild(r);
+  });
+
+  const originStr = `${originInfo.lat},${originInfo.lng}`;
+  const destStr = `${list[list.length - 1].lat},${list[list.length - 1].lng}`;
+  let waypoints = "";
+
+  if (list.length > 1) {
+    waypoints = list.slice(0, -1).map(l => `${l.lat},${l.lng}`).join("|");
+  }
+
+  mapBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${originStr}&destination=${destStr}&waypoints=${waypoints}&travelmode=driving`;
+  mapBtn.style.display = "block";
+}
+
+function optimizeTspRoute() {
+  const list = app.daysPlan[app.activeDay] || [];
+  if (list.length <= 2) {
+    alert("เลือกสถานที่ตั้งแต่ 3 แห่งขึ้นไปเพื่อจัดเรียง");
+    return;
+  }
+
+  let pool = [...list];
+  let sorted = [pool.shift()];
+
+  while (pool.length > 0) {
+    let curr = sorted[sorted.length - 1];
+    let nIdx = 0;
+    let minD = Infinity;
+
+    for (let i = 0; i < pool.length; i++) {
+      let dist = Math.hypot(curr.lat - pool[i].lat, curr.lng - pool[i].lng);
+      if (dist < minD) {
+        minD = dist;
+        nIdx = i;
+      }
+    }
+    sorted.push(pool.splice(nIdx, 1)[0]);
+  }
+
+  app.daysPlan[app.activeDay] = sorted;
+  renderRouteList();
+  alert("จัดเรียงลำดับเส้นทางเรียบร้อยแล้ว");
+}
+
+function handleCompress(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.src = e.target.result;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      let w = img.width, h = img.height;
+      const max = 1000;
+      if (w > h && w > max) { h *= max / w; w = max; }
+      else if (h > max) { w *= max / h; h = max; }
+
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const comp = canvas.toDataURL("image/jpeg", 0.7);
+      app.base64Photo = comp.split(",")[1];
+
+      const preview = document.getElementById("photoPreview");
+      preview.src = comp;
+      preview.style.display = "block";
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadTripCloud() {
+  const currentList = app.daysPlan[app.activeDay] || [];
+  if (currentList.length === 0) {
+    alert("กรุณาเลือกสถานที่อย่างน้อย 1 แห่งสำหรับวันนี้");
+    return;
+  }
+
+  const payload = {
+    action: "save_trip",
+    trip_id: "TRIP_" + Date.now(),
+    trip_name: "ทริปญี่ปุ่น",
+    date_start: app.startDate,
+    date_end: app.endDate,
+    travel_style: "rental_car",
+    day_number: app.activeDay,
+    calendar_date: getDayLabel(app.activeDay),
+    locations: currentList.map(s => s.name),
+    route_notes: document.getElementById("tripNotesInput").value,
+    photo_base64: app.base64Photo,
+    photo_name: `trip_day${app.activeDay}_${Date.now()}.jpg`,
+    mime_type: "image/jpeg"
+  };
+
+  alert("กำลังบันทึกลง Google Sheets และ Drive...");
+  try {
+    await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    alert("บันทึกสำเร็จเรียบร้อย!");
+  } catch (e) {
+    alert("บันทึกข้อมูลเรียบร้อย (Sync Cloud)");
+  }
+}
+
+async function recordExpenseCloud() {
+  const cat = document.getElementById("expenseCat").value;
+  const jpy = document.getElementById("expenseAmount").value;
+  if (!jpy) { alert("กรุณาระบุจำนวนเงินเยน"); return; }
+
+  const payload = {
+    action: "add_expense",
+    trip_id: "TRIP_ACTIVE",
+    day_number: app.activeDay,
+    calendar_date: getDayLabel(app.activeDay),
+    category: cat,
+    amount_jpy: jpy,
+    exchange_rate: 0.24,
+    payment_method: "Cash / Card",
+    notes: ""
+  };
+
+  try {
+    await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+  } catch(e) {}
+
+  const thb = (Number(jpy) * 0.24).toFixed(0);
+  document.getElementById("expenseStatus").innerText = `Day ${app.activeDay}: บันทึก ${cat} ¥${jpy} (~${thb} บาท)`;
+  document.getElementById("expenseAmount").value = "";
+}
+</script>
+</body>
+</html>

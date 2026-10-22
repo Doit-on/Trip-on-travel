@@ -1,0 +1,12 @@
+{
+  "name": "tabi-note",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Tabi Note — แพลนเที่ยวญี่ปุ่นแบบไปได้จริง",
+  "scripts": {
+    "test": "node tests/check.js && node tests/e2e.js",
+    "check": "node tests/check.js",
+    "e2e": "node tests/e2e.js"
+  },
+  "engines": { "node": ">=22" }
+}

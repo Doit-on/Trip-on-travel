@@ -11,7 +11,7 @@ const CLOUD_KEY = 'tabinote.cloud.v1';
 const SHEET_PLACES_KEY = 'tabinote.sheetplaces.v1';
 const DEFAULT_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbzbGd-ZcQqfYo5UxEXshky9z_XQjgvyv6WaQ4xs8Qhese8UYTrnJI9S8cWbYFdN5NEsDA/exec';
 const BASE_PLACES = { ...PLACES };
-const SHARED_FIELDS = ['trip', 'days', 'hotels', 'restaurants', 'expenses', 'budget', 'customPlaces'];
+const SHARED_FIELDS = ['trip', 'days', 'hotels', 'restaurants', 'expenses', 'budget', 'customPlaces', 'deletedIds'];
 
 let CLOUD = (() => {
   try {
@@ -86,12 +86,23 @@ async function pullNow(silent = false) {
   setSync('busy');
   try {
     const r = await api('pull');
+    const sheetRests = r.restaurants || (r.state && r.state.restaurants) || [];
+    const sheetHotels = r.hotels || (r.state && r.state.hotels) || [];
     if (r.state && r.updatedAt > CLOUD.lastSync) {
       if (CLOUD.dirty) { mergeRemote(r.state); CLOUD.lastSync = r.updatedAt; saveCloud(); schedulePush(); }
       else { applyRemote(r.state); CLOUD.lastSync = r.updatedAt; saveCloud(); }
+      mergeSheetItems(sheetRests, sheetHotels, !CLOUD.dirty);
       if (!silent) toast(t('sync_pulled', { who: r.updatedBy || '?' }));
-    } else if (!r.state || CLOUD.dirty) {
-      schedulePush();                          // ทริปใหม่บน cloud หรือมีของค้างส่ง
+    } else {
+      const added = mergeSheetItems(sheetRests, sheetHotels, !CLOUD.dirty);
+      if (added > 0) {
+        if (!silent) toast(t('sheet_synced', { n: added }));
+        schedulePush();
+      } else if (!r.state || CLOUD.dirty) {
+        schedulePush();                          // ทริปใหม่บน cloud หรือมีของค้างส่ง
+      } else if (!silent) {
+        toast(t('sync_pulled', { who: r.updatedBy || 'Sheet' }));
+      }
     }
     mergeRemotePhotos(r.photos || {});
     if (syncState === 'busy') setSync('ok');
@@ -104,9 +115,59 @@ function applyRemote(remote) {
   saveState({ localOnly: true });
 }
 
+/** รวมข้อมูลจากชีต Restaurants / Hotels เข้ากับ state โดยไม่ทำให้ข้อมูลที่บันทึกไว้หาย */
+function mergeSheetItems(sheetRests = [], sheetHotels = [], sheetWins = true) {
+  const del = new Set((state.deletedIds || []).map(String));
+  const norm = s => String(s || '').trim().toLowerCase();
+  let changed = 0;
+
+  if (Array.isArray(sheetRests) && sheetRests.length) {
+    state.restaurants = state.restaurants || [];
+    sheetRests.forEach(sr => {
+      if (!sr || !sr.name || del.has(String(sr.id))) return;
+      const found = state.restaurants.find(x => x.id === sr.id || (norm(x.name) && norm(x.name) === norm(sr.name)));
+      if (!found) {
+        state.restaurants.push({ ...sr, id: sr.id || ('r_sh_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)) });
+        changed++;
+      } else if (sheetWins) {
+        const fields = ['name', 'nameJa', 'area', 'meal', 'day', 'address', 'gps', 'note'];
+        fields.forEach(f => {
+          if (sr[f] !== undefined && sr[f] !== '' && sr[f] !== found[f]) { found[f] = sr[f]; changed++; }
+        });
+      }
+    });
+  }
+
+  if (Array.isArray(sheetHotels) && sheetHotels.length) {
+    state.hotels = state.hotels || [];
+    sheetHotels.forEach(sh => {
+      if (!sh || !sh.name || !sh.checkin || !sh.checkout || del.has(String(sh.id))) return;
+      const found = state.hotels.find(x => x.id === sh.id || (norm(x.name) && norm(x.name) === norm(sh.name)));
+      if (!found) {
+        state.hotels.push({ ...sh, id: sh.id || ('h_sh_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)) });
+        changed++;
+      } else if (sheetWins) {
+        ['name', 'address', 'gps', 'checkin', 'checkout'].forEach(f => {
+          if (sh[f] !== undefined && sh[f] !== '' && sh[f] !== found[f]) { found[f] = sh[f]; changed++; }
+        });
+      }
+    });
+  }
+
+  if (changed > 0) saveState({ localOnly: true });
+  return changed;
+}
+
 /** รวมข้อมูล: รายการที่มี id รวมกัน (ของเครื่องนี้ชนะถ้า id ซ้ำ) · ส่วนอื่นใช้ของเครื่องนี้ */
 function mergeRemote(remote) {
-  const byId = (a = [], b = []) => { const m = new Map(); a.forEach(x => m.set(x.id, x)); b.forEach(x => m.set(x.id, x)); return [...m.values()]; };
+  const del = new Set([...(remote.deletedIds || []), ...(state.deletedIds || [])].map(String));
+  state.deletedIds = [...del];
+  const byId = (a = [], b = []) => {
+    const m = new Map();
+    a.forEach(x => { if (x && !del.has(String(x.id))) m.set(x.id, x); });
+    b.forEach(x => { if (x && !del.has(String(x.id))) m.set(x.id, x); });
+    return [...m.values()];
+  };
   state.expenses = byId(remote.expenses, state.expenses);
   state.hotels = byId(remote.hotels, state.hotels);
   state.restaurants = byId(remote.restaurants, state.restaurants);
@@ -145,6 +206,14 @@ async function pullPlaces() {
     return Object.keys(r.places || {}).length;
   } catch (e) { console.warn('[places]', e.message); return -1; }
 }
+async function pullSheetData(btn) {
+  if (!cloudOn()) { openCloud(); return; }
+  btn && btn.classList.add('loading');
+  try {
+    await pullPlaces();
+    await pullNow(false);
+  } finally { btn && btn.classList.remove('loading'); }
+}
 async function seedPlaces(btn) {
   btn && btn.classList.add('loading');
   try {
@@ -176,12 +245,34 @@ async function geminiAsk(q, mode = 'chat') {
   const r = await api('ai', { q, mode, lang: L(), context: aiContext(), history }, 90000);
   return r.text;
 }
+function parseAiRecs(text) {
+  const s = String(text || '');
+  const idx = s.indexOf('RECS_JSON:');
+  if (idx < 0) return { cleanText: s, recs: null };
+  const cleanText = s.slice(0, idx).trim();
+  const rawJson = s.slice(idx + 10).replace(/^```(json)?|```$/g, '').trim();
+  try {
+    const j = JSON.parse(rawJson);
+    return { cleanText, recs: { places: Array.isArray(j.places) ? j.places : [], restaurants: Array.isArray(j.restaurants) ? j.restaurants : [] } };
+  } catch (e) { return { cleanText, recs: null }; }
+}
 function parsePlan(text) {
   try {
     const j = JSON.parse(String(text).replace(/^```(json)?|```$/g, '').trim());
-    const stops = (j.stops || []).filter(s => PLACES[s.id]).map(s => ({ id: s.id, leg: Math.max(0, Math.min(300, parseInt(s.leg, 10) || 30)) }));
+    const newPlaces = {};
+    (j.newPlaces || []).forEach(np => {
+      if (np && np.id && np.name) {
+        const th = typeof np.name === 'object' ? (np.name.th || np.name.ja) : String(np.name);
+        const ja = typeof np.name === 'object' ? (np.name.ja || np.name.th) : String(np.nameJa || np.name);
+        const aTh = typeof np.area === 'object' ? (np.area.th || np.area.ja || '') : String(np.area || '');
+        const aJa = typeof np.area === 'object' ? (np.area.ja || np.area.th || '') : String(np.area || '');
+        newPlaces[np.id] = { name: { th, ja }, ro: ja || th, area: { th: aTh, ja: aJa }, art: np.art || 'city', dur: Number(np.dur) || 60, gps: np.gps || '', mapcode: '', hi: { th: [], ja: [] }, miss: { th: [], ja: [] }, transit: { th: '', ja: '' }, custom: true };
+      }
+    });
+    const stops = (j.stops || []).filter(s => s && (PLACES[s.id] || newPlaces[s.id])).map(s => ({ id: s.id, leg: Math.max(0, Math.min(300, parseInt(s.leg, 10) || 30)) }));
     if (!stops.length) return null;
-    return { title: j.title, mode: MODES[j.mode] ? j.mode : 'transit', start: /^\d{2}:\d{2}$/.test(j.start) ? j.start : '09:00', stops, tip: j.tip || '' };
+    const restaurants = Array.isArray(j.restaurants) ? j.restaurants.filter(r => r && r.name) : [];
+    return { title: j.title, mode: MODES[j.mode] ? j.mode : 'transit', start: /^\d{2}:\d{2}$/.test(j.start) ? j.start : '09:00', stops, newPlaces, restaurants, tip: j.tip || '' };
   } catch (e) { return null; }
 }
 

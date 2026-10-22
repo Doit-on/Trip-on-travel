@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBF7F2">
+<title>Tabi Note — UX Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FBF7F2; --paper-2:#F4EEE6; --card:#FFFFFF;
+  --ink:#24211D; --ink-2:#5E5850; --ink-3:#9A938A; --line:rgba(36,33,29,.08);
+  --sakura:#F4D6DA; --sakura-ink:#B4566A;
+  --matcha:#DCE7D3; --matcha-ink:#4F6B3E;
+  --sora:#D9E6F1;  --sora-ink:#3D6283;
+  --yuzu:#F6E7C1;  --yuzu-ink:#8A6A1F;
+  --fuji:#E4DDF0;  --fuji-ink:#6450A0;
+  --r-xl:28px; --r-lg:20px; --r-md:14px; --r-sm:10px;
+  --shadow:0 1px 2px rgba(36,33,29,.04),0 8px 24px rgba(36,33,29,.06);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --font:"Anuphan",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --jp:"Shippori Mincho",serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--paper);color:var(--ink);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg.i{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.jp{font-family:var(--jp)}
+
+/* ---------- LANDING ---------- */
+#landing{position:fixed;inset:0;z-index:50;overflow:hidden;background:linear-gradient(180deg,#F9E3E1 0%,#F7ECE4 38%,#E8EEF3 100%);transition:opacity .6s ease,transform .6s ease}
+#landing.leave{opacity:0;transform:scale(1.04);pointer-events:none}
+.scene{position:absolute;inset:0;perspective:900px;perspective-origin:50% 60%}
+.stage{position:absolute;inset:-6%;transform-style:preserve-3d;transition:transform .25s ease-out}
+.layer{position:absolute;inset:0;will-change:transform}
+.layer svg{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:max(100%,900px);height:auto}
+.sun{position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,#FFF6E8 0%,#FBD9CF 60%,rgba(251,217,207,0) 72%);left:62%;top:16%}
+.cloud{position:absolute;height:26px;border-radius:30px;background:#fff;opacity:.85;box-shadow:30px -12px 0 6px #fff,64px 0 0 0 #fff;animation:drift 40s linear infinite}
+@keyframes drift{from{transform:translateX(-20vw)}to{transform:translateX(120vw)}}
+.petal{position:absolute;top:-20px;width:12px;height:9px;background:#F7C4CD;border-radius:12px 0 12px 0;opacity:.9;animation:fall linear infinite}
+@keyframes fall{0%{transform:translate(0,0) rotate(0)}100%{transform:translate(-120px,110vh) rotate(540deg)}}
+.land-copy{position:absolute;left:0;right:0;top:max(9vh,56px);text-align:center;padding:0 28px;z-index:5}
+.land-copy .kicker{font-family:var(--jp);letter-spacing:.5em;font-size:13px;color:var(--sakura-ink)}
+.land-copy h1{font-size:clamp(34px,8vw,56px);font-weight:700;letter-spacing:-.02em;line-height:1.1;margin-top:10px}
+.land-copy p{color:var(--ink-2);margin-top:12px;font-size:16px}
+.land-cta{position:absolute;left:0;right:0;bottom:calc(36px + var(--safe-b));display:flex;flex-direction:column;align-items:center;gap:12px;z-index:5;padding:0 24px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:52px;padding:0 28px;border-radius:999px;font-weight:600;font-size:16px}
+.btn-ink{background:var(--ink);color:#fff;box-shadow:0 10px 30px rgba(36,33,29,.25);width:min(340px,100%)}
+.btn-ghost{color:var(--ink-2);height:40px;font-size:14px}
+
+/* ---------- APP SHELL ---------- */
+#app{min-height:100%;display:flex}
+.rail{display:none}
+main{flex:1;min-width:0;padding:calc(16px + env(safe-area-inset-top,0px)) 20px calc(110px + var(--safe-b));max-width:760px;margin:0 auto}
+.screen{display:none;animation:in .35s ease}
+.screen.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.eyebrow{font-size:13px;color:var(--ink-3);font-weight:500}
+h2.title{font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+h3.sec{font-size:13px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.08em;margin:26px 0 10px}
+.avatar{width:38px;height:38px;border-radius:50%;background:var(--sakura);display:grid;place-items:center;font-weight:600;color:var(--sakura-ink);font-size:14px}
+.card{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:18px}
+.muted{color:var(--ink-3)} .small{font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:500}
+.c-sakura{background:var(--sakura);color:var(--sakura-ink)} .c-matcha{background:var(--matcha);color:var(--matcha-ink)}
+.c-sora{background:var(--sora);color:var(--sora-ink)} .c-yuzu{background:var(--yuzu);color:var(--yuzu-ink)} .c-fuji{background:var(--fuji);color:var(--fuji-ink)}
+
+/* Trip hero */
+.trip-hero{position:relative;border-radius:var(--r-xl);overflow:hidden;padding:22px;color:var(--ink);background:linear-gradient(135deg,#F7DCDD,#EFE6F3 55%,#DCE8F0)}
+.trip-hero .count{font-family:var(--jp);font-size:64px;line-height:1;font-weight:700}
+.trip-hero .row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.trip-hero .fuji{position:absolute;right:-20px;bottom:-8px;width:200px;opacity:.55}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.stat{background:var(--card);border-radius:var(--r-md);padding:12px 14px;box-shadow:var(--shadow)}
+.stat b{display:block;font-size:20px;font-weight:700}
+.stat span{font-size:12px;color:var(--ink-3)}
+
+/* Day strip */
+.days{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 2px 10px;margin:0 -20px;padding-left:20px;padding-right:20px;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.day{scroll-snap-align:start;flex:0 0 68px;height:84px;border-radius:18px;background:var(--card);box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.day .d{font-size:12px;color:var(--ink-3)} .day .n{font-size:24px;font-weight:700;font-family:var(--jp)}
+.day .dot{width:6px;height:6px;border-radius:50%}
+.day.on{background:var(--ink);color:#fff} .day.on .d{color:rgba(255,255,255,.6)}
+
+/* Overview list */
+.ov{display:flex;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.ov:last-child{border:0}
+.ov .num{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-family:var(--jp);font-weight:700;font-size:18px;flex:none}
+.ov .t{font-weight:600} .ov .s{font-size:13px;color:var(--ink-3)}
+.ov .grow{flex:1;min-width:0}
+.load{height:6px;border-radius:6px;background:var(--paper-2);overflow:hidden;width:56px;flex:none}
+.load i{display:block;height:100%;border-radius:6px}
+
+/* Timeline */
+.day-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.meter{margin-top:14px;padding:14px 16px;border-radius:var(--r-md);background:var(--matcha);color:var(--matcha-ink);display:flex;gap:12px;align-items:center;font-size:14px}
+.tl{position:relative;margin-top:18px}
+.stop{display:grid;grid-template-columns:52px 1fr;gap:12px}
+.stop .time{font-size:13px;font-weight:600;color:var(--ink-2);padding-top:16px;text-align:right}
+.place{display:flex;gap:14px;align-items:center;background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:12px;text-align:left;width:100%;transition:transform .15s}
+.place:active{transform:scale(.98)}
+.thumb{width:64px;height:64px;border-radius:14px;flex:none;position:relative;overflow:hidden}
+.thumb svg{position:absolute;inset:0;width:100%;height:100%}
+.place .t{font-weight:600;line-height:1.3} .place .s{font-size:13px;color:var(--ink-3);margin-top:2px}
+.leg{grid-column:2;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-3);padding:10px 0 10px 18px;border-left:2px dashed rgba(36,33,29,.12);margin-left:30px}
+.leg svg.i{width:16px;height:16px}
+
+/* Sheet */
+.scrim{position:fixed;inset:0;background:rgba(36,33,29,.28);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s;z-index:60}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:61;background:var(--paper);border-radius:28px 28px 0 0;max-height:88vh;overflow-y:auto;transform:translateY(105%);transition:transform .35s cubic-bezier(.2,.8,.2,1);padding:0 20px calc(28px + var(--safe-b));max-width:640px;margin:0 auto}
+.sheet.on{transform:none}
+.grab{width:40px;height:5px;border-radius:5px;background:rgba(36,33,29,.18);margin:10px auto 14px}
+.sheet .cover{height:180px;border-radius:var(--r-lg);overflow:hidden;position:relative}
+.sheet .cover svg{width:100%;height:100%}
+.sheet h4{font-size:24px;font-weight:700;margin-top:16px;letter-spacing:-.01em}
+.sheet .jpname{font-family:var(--jp);color:var(--ink-3);font-size:15px}
+.list{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+.li{display:flex;gap:10px;align-items:flex-start;font-size:15px}
+.li .b{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;flex:none;margin-top:1px;font-size:12px;font-weight:700}
+.gps{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card);border-radius:var(--r-md);padding:12px 14px;box-shadow:var(--shadow);margin-top:8px}
+.gps code{font-family:ui-monospace,Menlo,monospace;font-size:14px}
+.mini{height:34px;padding:0 14px;border-radius:999px;background:var(--paper-2);font-size:13px;font-weight:600}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.actions .btn{height:48px;width:100%;font-size:15px}
+.btn-soft{background:var(--paper-2)}
+
+/* Expenses */
+.big-num{font-size:40px;font-weight:700;letter-spacing:-.02em}
+.bar{display:flex;height:12px;border-radius:12px;overflow:hidden;margin:14px 0 6px;gap:3px}
+.legend{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:12px}
+.legend div{display:flex;align-items:center;gap:8px;font-size:14px}
+.legend i{width:10px;height:10px;border-radius:3px}
+.legend b{margin-left:auto;font-weight:600}
+.tx{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.tx:last-child{border:0}
+.tx .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none}
+.tx .grow{flex:1}
+
+/* AI */
+.bubble{max-width:86%;padding:12px 16px;border-radius:20px;font-size:15px;margin-bottom:10px}
+.b-me{margin-left:auto;background:var(--ink);color:#fff;border-bottom-right-radius:6px}
+.b-ai{background:var(--card);box-shadow:var(--shadow);border-bottom-left-radius:6px}
+.suggest{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.composer{position:sticky;bottom:calc(92px + var(--safe-b));display:flex;gap:8px;background:var(--card);border-radius:999px;box-shadow:var(--shadow);padding:6px 6px 6px 18px;align-items:center;margin-top:16px}
+.composer input{flex:1;border:0;outline:0;font:inherit;font-size:15px;background:none;min-width:0}
+.send{width:40px;height:40px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center}
+
+/* SOS */
+.sos-big{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sos{border-radius:var(--r-lg);padding:16px;display:flex;flex-direction:column;gap:2px;text-decoration:none;color:inherit}
+.sos b{font-size:34px;font-weight:700;font-family:var(--jp);line-height:1.1}
+.contact{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.contact:last-child{border:0}
+.contact .grow{flex:1;min-width:0}
+.call{width:40px;height:40px;border-radius:50%;background:var(--matcha);color:var(--matcha-ink);display:grid;place-items:center;flex:none}
+.note{font-size:12px;color:var(--ink-3);margin-top:10px}
+
+/* Tab bar */
+.tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--safe-b));z-index:40;display:flex;gap:2px;background:rgba(255,255,255,.82);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px);border-radius:999px;padding:6px;box-shadow:0 10px 30px rgba(36,33,29,.12);width:min(440px,calc(100% - 28px))}
+.tab{flex:1;height:52px;border-radius:999px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:500;color:var(--ink-3)}
+.tab.on{background:var(--ink);color:#fff}
+.tab svg.i{width:20px;height:20px}
+
+/* ---------- Desktop / tablet ---------- */
+@media (min-width:960px){
+  .tabbar{display:none}
+  .rail{display:flex;flex-direction:column;gap:4px;width:240px;flex:none;padding:28px 16px;position:sticky;top:0;height:100vh;border-right:1px solid var(--line)}
+  .rail .brand{font-weight:700;font-size:20px;padding:0 12px 20px}
+  .rail .brand span{font-family:var(--jp);color:var(--sakura-ink);font-size:14px;margin-left:6px}
+  .rail button{display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border-radius:12px;font-weight:500;color:var(--ink-2);text-align:left}
+  .rail button.on{background:var(--card);box-shadow:var(--shadow);color:var(--ink)}
+  main{padding:40px 40px 60px;max-width:880px}
+  .composer{bottom:20px}
+  .sheet{left:auto;right:24px;top:24px;bottom:24px;border-radius:28px;max-height:none;width:440px;transform:translateX(120%)}
+  .sheet.on{transform:none}
+  .grab{display:none}
+  .ov-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;align-items:start}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ============ LANDING (3D parallax scene) ============ -->
+<section id="landing" aria-label="หน้าแรก">
+  <div class="scene"><div class="stage" id="stage">
+    <div class="layer" data-z="-300"><div class="sun"></div>
+      <div class="cloud" style="top:14%;width:70px;animation-duration:55s"></div>
+      <div class="cloud" style="top:24%;width:50px;animation-duration:70s;animation-delay:-30s"></div>
+    </div>
+    <!-- Fuji -->
+    <div class="layer" data-z="-200">
+      <svg viewBox="0 0 900 520" preserveAspectRatio="xMidYMax meet">
+        <path d="M120 520 L380 170 Q450 120 520 170 L800 520Z" fill="#B9C6DE"/>
+        <path d="M380 170 Q450 120 520 170 L560 222 L528 210 L505 236 L470 212 L440 240 L410 214 L382 232 L345 220Z" fill="#FFFFFF"/>
+        <path d="M450 136 L520 170 L800 520 L620 520Z" fill="#A8B6D2" opacity=".6"/>
+      </svg>
+    </div>
+    <!-- hills + pagoda -->
+    <div class="layer" data-z="-90">
+      <svg viewBox="0 0 900 520" preserveAspectRatio="xMidYMax meet">
+        <path d="M0 520 L0 400 Q160 340 320 390 Q480 440 620 380 Q780 320 900 380 L900 520Z" fill="#CFDCC6"/>
+        <g transform="translate(640 230)" fill="#D97B7B">
+          <rect x="18" y="20" width="24" height="150" fill="#C86A6A"/>
+          <path d="M-14 40 L74 40 L60 28 L0 28Z"/><path d="M-8 72 L68 72 L56 60 L4 60Z"/>
+          <path d="M-4 104 L64 104 L52 92 L8 92Z"/><path d="M0 136 L60 136 L50 124 L10 124Z"/>
+          <path d="M4 166 L56 166 L48 154 L12 154Z"/>
+          <rect x="28" y="0" width="4" height="28" fill="#8C5050"/>
+        </g>
+      </svg>
+    </div>
+    <!-- foreground: torii + sakura -->
+    <div class="layer" data-z="40">
+      <svg viewBox="0 0 900 520" preserveAspectRatio="xMidYMax meet">
+        <path d="M0 520 L0 460 Q220 420 450 450 Q700 480 900 440 L900 520Z" fill="#EAD9CC"/>
+        <g transform="translate(120 290)">
+          <path d="M-20 0 Q90 -22 200 0 L196 16 Q90 -2 -16 16Z" fill="#E0625A"/>
+          <rect x="0" y="34" width="180" height="12" fill="#E0625A"/>
+          <rect x="22" y="10" width="14" height="170" fill="#E0625A"/>
+          <rect x="144" y="10" width="14" height="170" fill="#E0625A"/>
+          <rect x="18" y="170" width="22" height="12" fill="#5B4A44"/><rect x="140" y="170" width="22" height="12" fill="#5B4A44"/>
+        </g>
+        <g fill="#F6C6CF"><circle cx="820" cy="300" r="70"/><circle cx="760" cy="340" r="54"/><circle cx="870" cy="360" r="60"/></g>
+        <g fill="#F0AFBC"><circle cx="800" cy="330" r="34"/><circle cx="850" cy="300" r="26"/></g>
+        <path d="M820 520 L815 380 Q812 360 790 345 M815 400 Q840 370 860 360" stroke="#7A5A50" stroke-width="10" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div></div>
+  <div id="petals"></div>
+
+  <div class="land-copy">
+    <div class="kicker">旅 の ノ ー ト</div>
+    <h1>Tabi Note</h1>
+    <p>วางแผนเที่ยวญี่ปุ่นแบบที่ทำได้จริง<br>วันละกี่ที่ ไปยังไง ใช้เงินเท่าไหร่</p>
+  </div>
+  <div class="land-cta">
+    <button class="btn btn-ink" onclick="enterApp()">เริ่มวางแผนทริป</button>
+    <button class="btn btn-ghost" onclick="enterApp()">มีทริปอยู่แล้ว · เข้าสู่ระบบด้วย Google</button>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <nav class="rail" id="rail"></nav>
+  <main>
+
+    <!-- OVERVIEW -->
+    <section class="screen on" id="s-overview">
+      <div class="topbar">
+        <div><div class="eyebrow">ทริปของฉัน</div><h2 class="title">โตเกียว & ฟูจิ</h2></div>
+        <div class="avatar">NP</div>
+      </div>
+      <div class="ov-grid">
+        <div>
+          <div class="trip-hero">
+            <svg class="fuji" viewBox="0 0 200 110"><path d="M0 110 L80 30 Q100 16 120 30 L200 110Z" fill="#fff"/><path d="M80 30 Q100 16 120 30 L132 44 L118 40 L108 50 L98 40 L88 50 L78 40 L68 44Z" fill="#B9C6DE"/></svg>
+            <div class="row">
+              <div><div class="small" style="color:var(--ink-2)">อีก</div><div class="count">23</div><div class="small" style="color:var(--ink-2)">วันออกเดินทาง</div></div>
+              <div style="text-align:right;position:relative"><div class="chip c-sakura" style="background:#fff">9 – 13 พ.ย.</div><div class="small" style="margin-top:6px;color:var(--ink-2)">5 วัน · 3 คน</div></div>
+            </div>
+          </div>
+          <div class="stats">
+            <div class="stat"><b>14</b><span>สถานที่</span></div>
+            <div class="stat"><b>¥86k</b><span>ใช้ไปแล้ว</span></div>
+            <div class="stat"><b>2</b><span>วันเช่ารถ</span></div>
+          </div>
+          <h3 class="sec">เลือกวัน</h3>
+          <div class="days" id="days"></div>
+        </div>
+        <div>
+          <h3 class="sec">ภาพรวมรายวัน</h3>
+          <div class="card" style="padding:4px 18px" id="ovList"></div>
+          <p class="note">แถบสีขวามือ = ความแน่นของวัน (AI คำนวณจากเวลาเดินทาง + เวลาที่ควรใช้ต่อจุด)</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- DAY -->
+    <section class="screen" id="s-day">
+      <div class="topbar">
+        <button onclick="go('overview')" class="mini" style="display:flex;align-items:center;gap:4px"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>ภาพรวม</button>
+        <button class="mini" onclick="toast('เพิ่มลง Google Calendar แล้ว (ตัวอย่าง)')">ลงปฏิทิน</button>
+      </div>
+      <div class="day-head">
+        <div><div class="eyebrow" id="dayEyebrow"></div><h2 class="title" id="dayTitle"></h2></div>
+        <span class="chip" id="dayMode"></span>
+      </div>
+      <div class="meter" id="dayMeter"></div>
+      <div class="tl" id="timeline"></div>
+      <button class="btn btn-soft" style="width:100%;margin-top:18px" onclick="go('ai')">+ เพิ่มสถานที่ หรือให้ AI ช่วยจัด</button>
+    </section>
+
+    <!-- EXPENSES -->
+    <section class="screen" id="s-money">
+      <div class="topbar"><div><div class="eyebrow">ค่าใช้จ่าย</div><h2 class="title">งบทริป</h2></div><button class="mini">+ บันทึก</button></div>
+      <div class="card">
+        <div class="muted small">ใช้ไปแล้ว จากงบ ¥180,000</div>
+        <div class="big-num">¥86,400 <span class="muted" style="font-size:16px;font-weight:500">≈ ฿20,700</span></div>
+        <div class="bar"><i style="flex:38;background:#E8A6B2"></i><i style="flex:24;background:#9FB9D3"></i><i style="flex:18;background:#B5CDA3"></i><i style="flex:12;background:#E9CF8C"></i><i style="flex:8;background:#BFB1DD"></i><i style="flex:100;background:var(--paper-2)"></i></div>
+        <div class="legend">
+          <div><i style="background:#E8A6B2"></i>ที่พัก<b>¥32.8k</b></div>
+          <div><i style="background:#9FB9D3"></i>เดินทาง<b>¥20.7k</b></div>
+          <div><i style="background:#B5CDA3"></i>อาหาร<b>¥15.6k</b></div>
+          <div><i style="background:#E9CF8C"></i>ช้อปปิ้ง<b>¥10.4k</b></div>
+          <div><i style="background:#BFB1DD"></i>ค่าเข้าชม<b>¥6.9k</b></div>
+        </div>
+      </div>
+      <h3 class="sec">ล่าสุด</h3>
+      <div class="card" style="padding:4px 18px">
+        <div class="tx"><div class="ic c-sora"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21l2-4M16 21l-2-4"/></svg></div><div class="grow"><div style="font-weight:600">Seibu Kawagoe Pass</div><div class="small muted">วันที่ 2 · 3 ใบ</div></div><b>¥2,100</b></div>
+        <div class="tx"><div class="ic c-matcha"><svg class="i" viewBox="0 0 24 24"><path d="M4 11h16a8 8 0 0 1-16 0zM8 7c0-2 2-2 2-4M13 7c0-2 2-2 2-4"/></svg></div><div class="grow"><div style="font-weight:600">ปลาไหลย่าง Ichinoya</div><div class="small muted">วันที่ 2 · อาหาร</div></div><b>¥10,800</b></div>
+        <div class="tx"><div class="ic c-sakura"><svg class="i" viewBox="0 0 24 24"><path d="M3 21V10l9-6 9 6v11M9 21v-6h6v6"/></svg></div><div class="grow"><div style="font-weight:600">Hotel Gracery Shinjuku</div><div class="small muted">4 คืน · ที่พัก</div></div><b>¥32,800</b></div>
+      </div>
+    </section>
+
+    <!-- AI -->
+    <section class="screen" id="s-ai">
+      <div class="topbar"><div><div class="eyebrow">ผู้ช่วยวางแผน</div><h2 class="title">ถามได้เลย</h2></div></div>
+      <div class="bubble b-me">วันที่ 3 เช่ารถไปฟูจิ อยากไปเจดีย์ชูเรโตะ ทะเลสาบคาวากุจิโกะ แล้วก็โอชิโนะฮักไก ไหวไหม</div>
+      <div class="bubble b-ai">ไหวครับ แต่ควรออกจากชินจูกุก่อน <b>07:00</b> ขับประมาณ 1 ชม. 50 นาที<br><br>
+        ลำดับที่แนะนำ: <b>ชูเรโตะ</b> (แสงเช้าสวยสุด, บันได 398 ขั้น) → <b>สวนโออิชิ</b> → <b>โอชิโนะฮักไก</b> แล้วกลับก่อน 17:00 เลี่ยงรถติดช่วงเย็น<br><br>
+        <span class="muted small">รวม 3 จุด · ขับ 4 ชม. 10 นาที · เที่ยวจริง ~5 ชม. ถ้าเพิ่มอีกจุดจะเริ่มแน่นเกินไป</span></div>
+      <div class="suggest">
+        <button class="chip c-sakura" onclick="toast('จัดลงวันที่ 3 แล้ว (ตัวอย่าง)')">จัดลงวันที่ 3 ให้เลย</button>
+        <button class="chip c-sora">ถ้าไปรถไฟแทนล่ะ</button>
+        <button class="chip c-yuzu">ร้านโฮโตะแถวนั้น</button>
+      </div>
+      <div class="composer"><input placeholder="ถามเรื่องทริป เช่น ฝนตกวันที่ 2 ไปไหนดี"><button class="send" aria-label="ส่ง"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div>
+    </section>
+
+    <!-- SOS -->
+    <section class="screen" id="s-sos">
+      <div class="topbar"><div><div class="eyebrow">ความปลอดภัย</div><h2 class="title">เบอร์สำคัญ</h2></div></div>
+      <div class="sos-big">
+        <a class="sos c-sakura" href="tel:110"><span class="small">ตำรวจ</span><b>110</b><span class="small">ถูกขโมย · เกิดเหตุร้าย</span></a>
+        <a class="sos c-yuzu" href="tel:119"><span class="small">รถพยาบาล / ดับเพลิง</span><b>119</b><span class="small">เจ็บป่วย · ไฟไหม้</span></a>
+      </div>
+      <h3 class="sec">สถานทูต / กงสุลไทย</h3>
+      <div class="card" style="padding:4px 18px">
+        <div class="contact"><div class="grow"><div style="font-weight:600">สถานเอกอัครราชทูต ณ โตเกียว</div><div class="small muted">ทั่วไป 03-5789-2433 · ฉุกเฉิน 090-4435-7812</div></div><a class="call" href="tel:+819044357812"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg></a></div>
+        <div class="contact"><div class="grow"><div style="font-weight:600">สถานกงสุลใหญ่ ณ โอซากา</div><div class="small muted">ทั่วไป 06-6262-9226 · ฉุกเฉิน 090-1895-0987</div></div><a class="call" href="tel:+819018950987"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg></a></div>
+        <div class="contact"><div class="grow"><div style="font-weight:600">สถานกงสุลใหญ่ ณ ฟุกุโอกะ</div><div class="small muted">ทั่วไป 092-739-9088 · ฉุกเฉิน 090-2585-3027</div></div><a class="call" href="tel:+819025853027"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg></a></div>
+      </div>
+      <h3 class="sec">อื่น ๆ</h3>
+      <div class="card" style="padding:4px 18px">
+        <div class="contact"><div class="grow"><div style="font-weight:600">Japan Visitor Hotline (24 ชม.)</div><div class="small muted">050-3816-2787 · อังกฤษ/จีน/เกาหลี</div></div><a class="call" href="tel:+815038162787"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg></a></div>
+      </div>
+      <p class="note">* เบอร์ในต้นแบบนี้รวบรวมจากเว็บ ต้องตรวจกับ thaiembassy.org อีกครั้งก่อนใช้จริง ในระบบจริงจะเก็บไว้ใน Google Sheet และแคชไว้ในเครื่องให้ใช้ได้แม้ไม่มีเน็ต</p>
+    </section>
+
+  </main>
+</div>
+
+<nav class="tabbar" id="tabbar"></nav>
+
+<div class="scrim" id="scrim" onclick="closeSheet()"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true"></aside>
+
+<script>
+/* ---------------- data (ตัวอย่าง — ของจริงจะดึงจาก Google Sheet) ---------------- */
+const ART = {
+  temple:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><rect width="100" height="100" fill="#F4D6DA"/><path d="M15 50 Q50 34 85 50 L80 54 Q50 42 20 54Z" fill="#C8605F"/><rect x="26" y="54" width="48" height="30" fill="#E07A6E"/><rect x="44" y="64" width="12" height="20" fill="#6E3B3B"/><rect y="84" width="100" height="16" fill="#EAD9CC"/></svg>`,
+  street:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><rect width="100" height="100" fill="#F6E7C1"/><path d="M0 40 L30 28 L30 90 L0 90Z" fill="#6B5446"/><path d="M100 40 L70 28 L70 90 L100 90Z" fill="#7E6453"/><path d="M30 90 L45 50 L55 50 L70 90Z" fill="#D9C7A8"/><rect x="47" y="20" width="6" height="30" fill="#5B4A44"/><path d="M42 18 L58 18 L50 10Z" fill="#5B4A44"/></svg>`,
+  shrine:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><rect width="100" height="100" fill="#DCE7D3"/><path d="M14 34 Q50 26 86 34 L84 40 Q50 32 16 40Z" fill="#E0625A"/><rect x="20" y="46" width="60" height="5" fill="#E0625A"/><rect x="28" y="38" width="6" height="52" fill="#E0625A"/><rect x="66" y="38" width="6" height="52" fill="#E0625A"/></svg>`,
+  fuji:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><rect width="100" height="100" fill="#D9E6F1"/><path d="M0 90 L42 40 Q50 32 58 40 L100 90Z" fill="#9FB3D1"/><path d="M42 40 Q50 32 58 40 L62 46 L56 44 L50 49 L45 44 L38 46Z" fill="#fff"/><g transform="translate(70 46)" fill="#D97B7B"><rect x="6" y="6" width="5" height="40"/><path d="M-3 14 L20 14 L16 10 L1 10Z"/><path d="M-1 24 L18 24 L14 20 L3 20Z"/><path d="M0 34 L17 34 L13 30 L4 30Z"/></g></svg>`,
+  lake:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><rect width="100" height="100" fill="#E4DDF0"/><path d="M10 60 L45 24 Q50 20 55 24 L90 60Z" fill="#A9A0CC"/><path d="M45 24 Q50 20 55 24 L60 30 L50 32 L40 30Z" fill="#fff"/><rect y="60" width="100" height="40" fill="#B9D3E6"/><path d="M10 60 L45 90 Q50 94 55 90 L90 60Z" fill="#A9A0CC" opacity=".35"/></svg>`,
+  water:`<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><rect width="100" height="100" fill="#DCE7D3"/><ellipse cx="50" cy="70" rx="40" ry="16" fill="#9FC4D6"/><path d="M8 50 Q20 30 34 48 Q48 26 62 46 Q78 28 92 50Z" fill="#7FA36B"/><path d="M40 0 L60 0 L56 36 L44 36Z" fill="#fff" opacity=".0"/></svg>`
+};
+const PLACES = {
+  sensoji:{n:"วัดเซนโซจิ",jp:"浅草寺",area:"อาซากุสะ",art:"temple",dur:"1.5 ชม.",gps:"35.71480, 139.79665",
+    hi:["วัดที่เก่าแก่ที่สุดในโตเกียว ประตูคามินาริมงพร้อมโคมแดงยักษ์","ถนนนากามิเสะยาว 250 ม. ขนมและของฝากพื้นเมือง"],
+    miss:["มาก่อน 8 โมงเช้าเพื่อถ่ายรูปโดยไม่มีคนเยอะ","ลองเซียมซีโอมิคุจิ (¥100) ถ้าได้ใบไม่ดีให้ผูกไว้ที่วัด"],
+    transit:"Ginza Line / Asakusa Line ลงสถานี Asakusa ทางออก 1 เดิน 5 นาที"},
+  kashiya:{n:"ซอยขนมคาชิยะโยโกโจ",jp:"菓子屋横丁",area:"คาวาโกเอะ",art:"street",dur:"1 ชม.",gps:"35.92754, 139.48406",
+    hi:["ตรอกร้านขนมโบราณสมัยโชวะ กว่า 20 ร้าน","ฟุคาชิ (麩菓子) แท่งยาวเกือบ 1 เมตร"],
+    miss:["ไอศกรีมมันหวาน — ของขึ้นชื่อคาวาโกเอะ","ร้านส่วนใหญ่ปิด 17:00 ควรมาก่อนบ่าย"],
+    transit:"Seibu Shinjuku Line ลง Hon-Kawagoe แล้วนั่งรถบัสโคเอโดะ ใช้ Seibu Kawagoe Pass ได้"},
+  tokinokane:{n:"หอระฆังโทคิโนะคาเนะ",jp:"時の鐘",area:"คาวาโกเอะ",art:"street",dur:"45 นาที",gps:"35.92500, 139.48580",
+    hi:["สัญลักษณ์ของเมือง หอระฆังไม้สูง 16 ม.","ถนนคุราซึคุริ บ้านโกดังดินแบบเอโดะ"],
+    miss:["ฟังเสียงระฆังตอน 6:00, 12:00, 15:00, 18:00","ร้านกาแฟ Starbucks สไตล์ญี่ปุ่นโบราณใกล้ ๆ"],
+    transit:"เดินจาก Kashiya Yokocho 5 นาที"},
+  hikawa:{n:"ศาลเจ้าคาวาโกเอะฮิคาวะ",jp:"川越氷川神社",area:"คาวาโกเอะ",art:"shrine",dur:"1 ชม.",gps:"35.92640, 139.48800",
+    hi:["ศาลเจ้าแห่งความรัก อายุกว่า 1,500 ปี","อุโมงค์กระดิ่งลม (ฤดูร้อน) และแม่น้ำเครื่องรางลอยน้ำ"],
+    miss:["ตกปลาเสี่ยงทาย Ai-Tai Mikuji (ปลากระดาษสีแดง)","เปิดถึงประมาณ 18:00 แต่ช่องเครื่องรางปิดเร็วกว่า"],
+    transit:"เดินจาก Toki no Kane ประมาณ 12 นาที"},
+  chureito:{n:"เจดีย์ชูเรโตะ",jp:"忠霊塔",area:"ฟูจิโยชิดะ",art:"fuji",dur:"1.5 ชม.",gps:"35.50108, 138.80190",
+    hi:["มุมโปสการ์ดภูเขาไฟฟูจิกับเจดีย์ห้าชั้น","ใบไม้แดงช่วงกลาง–ปลาย พ.ย."],
+    miss:["บันได 398 ขั้น เผื่อเวลาเดินขึ้น 15–20 นาที","แสงเช้าก่อน 9 โมงชัดสุด เมฆมักบังช่วงบ่าย"],
+    transit:"รถไฟ Fujikyu ลงสถานี Shimoyoshida เดิน 10 นาที | รถเช่า: จอดลานจอดอาราคุระฟรี"},
+  oishi:{n:"สวนโออิชิ ทะเลสาบคาวากุจิโกะ",jp:"大石公園",area:"คาวากุจิโกะ",art:"lake",dur:"1 ชม.",gps:"35.52220, 138.74420",
+    hi:["ฟูจิสะท้อนผิวทะเลสาบ","ทุ่งโคเคียสีแดงช่วงต้น–กลาง พ.ย."],
+    miss:["ซอฟต์ครีมบลูเบอร์รี่ที่ร้านในสวน","ลมแรงริมทะเลสาบ เตรียมเสื้อกันลม"],
+    transit:"รถบัส Kawaguchiko Sightseeing (Red Line) ลงป้าย Kawaguchiko Natural Living Center"},
+  oshino:{n:"หมู่บ้านโอชิโนะฮักไก",jp:"忍野八海",area:"โอชิโนะ",art:"water",dur:"1 ชม.",gps:"35.46030, 138.83280",
+    hi:["บ่อน้ำผุดจากหิมะละลายของฟูจิ ใสจนเห็นก้นบ่อ","บ้านหลังคามุงจากแบบดั้งเดิม"],
+    miss:["คุสะโมจิย่างและเต้าหู้ทำจากน้ำบ่อ","คนเยอะช่วง 11:00–14:00 ถ้าได้ควรไปเช้า"],
+    transit:"รถบัส Fujikyu จาก Fujisan Station ลงป้าย Oshino Hakkai ประมาณ 20 นาที"},
+};
+const DAYS = [
+  {d:"ส.",n:9,title:"ถึงโตเกียว · อาซากุสะ",mode:["c-sora","ขนส่งสาธารณะ"],load:[45,"#9FB9D3"],color:"#9FB9D3",
+   meter:"2 จุด · วันแรกเผื่อเวลาเช็กอิน กำลังดี", stops:[["15:30","sensoji"]],legs:[]},
+  {d:"อา.",n:10,title:"คาวาโกเอะ เมืองเอโดะน้อย",mode:["c-sora","Seibu Kawagoe Pass"],load:[70,"#B5CDA3"],color:"#B5CDA3",
+   meter:"3 จุด · เดินเท้าทั้งวัน ~6 กม. พอดี ไม่เร่ง",
+   stops:[["10:30","kashiya"],["12:00","tokinokane"],["14:30","hikawa"]],
+   legs:[["walk","เดิน 5 นาที"],["walk","พักกินปลาไหลย่าง · เดิน 12 นาที"]]},
+  {d:"จ.",n:11,title:"ขับรถรอบฟูจิ",mode:["c-yuzu","รถเช่า"],load:[85,"#E9CF8C"],color:"#E9CF8C",
+   meter:"3 จุด · ขับรวม 4 ชม. 10 นาที ค่อนข้างแน่น ไม่แนะนำให้เพิ่ม",
+   stops:[["08:45","chureito"],["11:00","oishi"],["13:30","oshino"]],
+   legs:[["car","ขับ 20 นาที · 12 กม."],["car","ขับ 25 นาที · 18 กม."]]},
+  {d:"อ.",n:12,title:"ชินจูกุ · ช้อปปิ้ง",mode:["c-sora","ขนส่งสาธารณะ"],load:[40,"#BFB1DD"],color:"#BFB1DD",meter:"ยังว่าง — ให้ AI แนะนำได้",stops:[],legs:[]},
+  {d:"พ.",n:13,title:"กลับกรุงเทพฯ",mode:["c-sakura","สนามบิน"],load:[20,"#E8A6B2"],color:"#E8A6B2",meter:"เที่ยวบิน 16:30 · ออกจากโรงแรม 12:00",stops:[],legs:[]},
+];
+const ICONS = {
+  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  ai:'<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  money:'<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h3"/>',
+  sos:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 9v4M12 16h.01"/>',
+  walk:'<circle cx="13" cy="4" r="2"/><path d="M9 21l2-6 3 3v3M7 12l3-4 4 1 2 4M11 15l-1-4"/>',
+  car:'<path d="M5 16V11l2-5h10l2 5v5M3 16h18v3H3zM7 19v2M17 19v2"/>',
+  pin:'<path d="M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+  camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  train:'<rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21l2-4M16 21l-2-4"/>'
+};
+const ic = (k,s='') => `<svg class="i" viewBox="0 0 24 24" ${s}>${ICONS[k]}</svg>`;
+const NAV = [["overview","ทริป","home"],["day","รายวัน","cal"],["ai","AI","ai"],["money","ค่าใช้จ่าย","money"],["sos","SOS","sos"]];
+let curDay = 1;
+
+/* ---------------- render ---------------- */
+function renderNav(){
+  document.getElementById('tabbar').innerHTML = NAV.map(([k,l,i])=>`<button class="tab" data-k="${k}" onclick="go('${k}')">${ic(i)}<span>${l}</span></button>`).join('');
+  document.getElementById('rail').innerHTML = `<div class="brand">Tabi Note<span>旅</span></div>` + NAV.map(([k,l,i])=>`<button data-k="${k}" onclick="go('${k}')">${ic(i)}${l}</button>`).join('');
+}
+function renderDays(){
+  document.getElementById('days').innerHTML = DAYS.map((x,i)=>`<button class="day ${i===curDay?'on':''}" onclick="openDay(${i})"><span class="d">${x.d}</span><span class="n">${x.n}</span><span class="dot" style="background:${x.color}"></span></button>`).join('');
+  document.getElementById('ovList').innerHTML = DAYS.map((x,i)=>`
+    <button class="ov" style="width:100%;text-align:left" onclick="openDay(${i})">
+      <div class="num" style="background:${x.color}33;color:var(--ink)">${i+1}</div>
+      <div class="grow"><div class="t">${x.title}</div><div class="s">${x.n} พ.ย. · ${x.stops.length||'—'} จุด · ${x.mode[1]}</div></div>
+      <div class="load"><i style="width:${x.load[0]}%;background:${x.load[1]}"></i></div>
+    </button>`).join('');
+}
+function renderDay(){
+  const x = DAYS[curDay];
+  dayEyebrow.textContent = `วันที่ ${curDay+1} · ${x.d} ${x.n} พ.ย.`;
+  dayTitle.textContent = x.title;
+  dayMode.className = 'chip '+x.mode[0]; dayMode.textContent = x.mode[1];
+  dayMeter.innerHTML = `${ic('cal','style="width:20px;height:20px"')}<span>${x.meter}</span>`;
+  let h = '';
+  x.stops.forEach(([t,id],i)=>{
+    const p = PLACES[id];
+    h += `<div class="stop"><div class="time">${t}</div>
+      <button class="place" onclick="openPlace('${id}')"><div class="thumb">${ART[p.art]}</div>
+      <div><div class="t">${p.n}</div><div class="s">${p.area} · ใช้เวลา ${p.dur}</div></div></button></div>`;
+    if (x.legs[i]) h += `<div class="stop"><div></div><div class="leg" style="grid-column:auto;margin-left:30px">${ic(x.legs[i][0])}${x.legs[i][1]}</div></div>`;
+  });
+  if (!x.stops.length) h = `<div class="card" style="text-align:center;padding:32px 18px"><div style="font-weight:600">ยังไม่มีสถานที่</div><div class="small muted" style="margin-top:4px">เลือกจากฐานข้อมูล หรือถาม AI ว่าวันนี้ควรไปไหน</div></div>`;
+  timeline.innerHTML = h;
+}
+function openDay(i){ curDay=i; renderDays(); renderDay(); go('day'); }
+
+function openPlace(id){
+  const p = PLACES[id];
+  const gmaps = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.gps.replace(/\s/g,''))}`;
+  sheet.innerHTML = `<div class="grab"></div>
+    <div class="cover">${ART[p.art]}</div>
+    <h4>${p.n}</h4><div class="jpname">${p.jp} · ${p.area}</div>
+    <h3 class="sec">จุดเด่น</h3><div class="list">${p.hi.map(t=>`<div class="li"><span class="b c-sora">✓</span>${t}</div>`).join('')}</div>
+    <h3 class="sec">ไม่ควรพลาด</h3><div class="list">${p.miss.map(t=>`<div class="li"><span class="b c-sakura">!</span>${t}</div>`).join('')}</div>
+    <h3 class="sec">สำหรับรถเช่า (GPS)</h3>
+    <div class="gps"><div><div class="small muted">พิกัด</div><code>${p.gps}</code></div><button class="mini" onclick="copyTxt('${p.gps}')">คัดลอก</button></div>
+    <div class="gps"><div><div class="small muted">Mapcode</div><code class="muted">ดึงจากฐานข้อมูล</code></div><button class="mini" disabled style="opacity:.4">คัดลอก</button></div>
+    <h3 class="sec">ขนส่งสาธารณะ</h3>
+    <div class="gps" style="align-items:flex-start;justify-content:flex-start">${ic('train','style="color:var(--sora-ink)"')}<div style="font-size:14px">${p.transit}</div></div>
+    <div class="actions">
+      <a class="btn btn-ink" style="width:100%;height:48px;font-size:15px;text-decoration:none" href="${gmaps}" target="_blank" rel="noopener">${ic('pin','style="width:18px;height:18px"')}นำทาง</a>
+      <label class="btn btn-soft" style="cursor:pointer">${ic('camera','style="width:18px;height:18px"')}ถ่าย/เลือกรูป<input type="file" accept="image/*" capture="environment" hidden onchange="toast('อัปโหลดเข้า Google Drive (ตัวอย่าง)')"></label>
+    </div>`;
+  sheet.scrollTop = 0; sheet.classList.add('on'); scrim.classList.add('on');
+}
+function closeSheet(){ sheet.classList.remove('on'); scrim.classList.remove('on'); }
+
+function go(k){
+  closeSheet();
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.id==='s-'+k));
+  document.querySelectorAll('[data-k]').forEach(b=>b.classList.toggle('on', b.dataset.k===k));
+  if (k==='day') renderDay();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function copyTxt(t){ navigator.clipboard?.writeText(t); toast('คัดลอกพิกัดแล้ว ใส่ในเนวิเกเตอร์รถเช่าได้เลย'); }
+function toast(msg){
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = 'position:fixed;left:50%;top:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;z-index:99;box-shadow:var(--shadow);max-width:90vw;text-align:center';
+  document.body.appendChild(el); setTimeout(()=>el.remove(),2200);
+}
+
+/* ---------------- landing 3D parallax ---------------- */
+const stage = document.getElementById('stage');
+const layers = [...document.querySelectorAll('.layer')];
+layers.forEach(l=>{ const z=+l.dataset.z; l.style.transform=`translateZ(${z}px) scale(${1 + -z/900})`; });
+function tilt(x,y){ stage.style.transform = `rotateY(${x*6}deg) rotateX(${-y*4}deg)`; }
+window.addEventListener('pointermove', e=>tilt(e.clientX/innerWidth-.5, e.clientY/innerHeight-.5));
+window.addEventListener('deviceorientation', e=>{ if(e.gamma!=null) tilt(Math.max(-1,Math.min(1,e.gamma/30))*.5, Math.max(-1,Math.min(1,(e.beta-45)/30))*.5); });
+(function petals(){
+  const box = document.getElementById('petals');
+  for (let i=0;i<18;i++){
+    const p = document.createElement('i'); p.className='petal';
+    p.style.left = Math.random()*110+'%';
+    p.style.animationDuration = (8+Math.random()*8)+'s';
+    p.style.animationDelay = (-Math.random()*16)+'s';
+    p.style.transform = `scale(${.6+Math.random()*.8})`;
+    box.appendChild(p);
+  }
+})();
+function enterApp(){ landing.classList.add('leave'); setTimeout(()=>landing.remove(),650); }
+
+renderNav(); renderDays(); go('overview');
+
+/* deep-link สำหรับรีวิว: #overview  #day=2  #place=chureito  #ai  #money  #sos */
+(function deepLink(){
+  const h = location.hash.slice(1); if (!h) return;
+  landing.remove();
+  const [k,v] = h.split('=');
+  if (k==='day') openDay((+v||1)-1);
+  else if (k==='place'){ openDay(2); setTimeout(()=>openPlace(v),50); }
+  else if (NAV.some(n=>n[0]===k)) go(k);
+})();
+</script>
+</body>
+</html>

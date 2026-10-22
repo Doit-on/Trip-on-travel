@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBF7F2">
+<meta name="description" content="Tabi Note — แพลนเที่ยวญี่ปุ่นแบบไปได้จริง">
+<title>Tabi Note</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Itim&family=Mali:wght@400;500;600;700&family=Yusei+Magic&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<!-- ============ LANDING: ฉาก 3 มิติแบบเลเยอร์ (ขยับตามเมาส์ / การเอียงมือถือ) ============ -->
+<section id="landing" aria-label="Tabi Note">
+  <div class="scene"><div class="stage" id="stage">
+    <div class="layer l-sky">
+      <div class="sun"></div>
+      <div class="cloud" style="top:16%;width:70px;animation-duration:50s"></div>
+      <div class="cloud" style="top:28%;width:46px;animation-duration:70s;animation-delay:-35s"></div>
+      <div class="cloud" style="top:9%;width:56px;animation-duration:62s;animation-delay:-12s"></div>
+    </div>
+    <div class="layer l-far">
+      <svg class="obj o-fuji" viewBox="0 0 800 400" aria-hidden="true">
+        <path d="M0 400 L330 70 Q400 20 470 70 L800 400Z" fill="#B7C5DF"/>
+        <path d="M400 34 L470 70 L800 400 L600 400Z" fill="#A5B4D2" opacity=".6"/>
+        <path d="M330 70 Q400 20 470 70 L520 120 L486 108 L462 136 L428 110 L398 140 L366 112 L336 130 L290 112Z" fill="#fff"/>
+      </svg>
+    </div>
+    <div class="layer l-mid">
+      <svg class="obj o-hills" viewBox="0 0 900 300" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 300 L0 120 Q160 40 320 100 Q480 160 620 90 Q780 20 900 90 L900 300Z" fill="#CBDBC1"/>
+      </svg>
+      <svg class="obj o-pagoda" viewBox="0 0 80 190" aria-hidden="true">
+        <g fill="#D97B7B"><rect x="32" y="24" width="16" height="166" fill="#C86A6A"/>
+          <path d="M0 44 L80 44 L68 32 L12 32Z"/><path d="M4 78 L76 78 L64 66 L16 66Z"/><path d="M8 112 L72 112 L62 100 L18 100Z"/>
+          <path d="M12 146 L68 146 L58 134 L22 134Z"/><path d="M14 178 L66 178 L58 166 L22 166Z"/></g>
+        <rect x="38" y="0" width="4" height="32" fill="#8C5050"/>
+      </svg>
+    </div>
+    <div class="layer l-near">
+      <svg class="obj o-ground" viewBox="0 0 900 140" preserveAspectRatio="none" aria-hidden="true"><path d="M0 140 L0 50 Q220 0 450 30 Q700 60 900 20 L900 140Z" fill="#EBDACC"/></svg>
+      <svg class="obj o-torii" viewBox="0 0 220 200" aria-hidden="true">
+        <path d="M0 14 Q110 -8 220 14 L216 30 Q110 12 4 30Z" fill="#E0625A"/>
+        <rect x="20" y="46" width="180" height="12" fill="#E0625A"/>
+        <rect x="40" y="24" width="15" height="166" fill="#E0625A"/><rect x="165" y="24" width="15" height="166" fill="#E0625A"/>
+        <rect x="36" y="186" width="23" height="14" fill="#5B4A44"/><rect x="161" y="186" width="23" height="14" fill="#5B4A44"/>
+      </svg>
+      <svg class="obj o-sakura" viewBox="0 0 300 300" aria-hidden="true">
+        <path d="M170 300 L165 170 Q160 140 120 120 M165 190 Q200 150 230 140" stroke="#7A5A50" stroke-width="14" fill="none" stroke-linecap="round"/>
+        <g fill="#F6C6CF"><circle cx="150" cy="90" r="78"/><circle cx="80" cy="130" r="58"/><circle cx="230" cy="130" r="64"/><circle cx="200" cy="60" r="48"/></g>
+        <g fill="#F0AFBC"><circle cx="120" cy="110" r="34"/><circle cx="210" cy="100" r="28"/><circle cx="170" cy="150" r="24"/></g>
+      </svg>
+    </div>
+  </div></div>
+  <div id="petals" aria-hidden="true"></div>
+
+  <div class="land-copy">
+    <div class="kicker">旅 の ノ ー ト</div>
+    <h1>Tabi<span>♪</span>Note</h1>
+    <p id="landTag"></p>
+  </div>
+  <div class="land-cta">
+    <button class="btn btn-ink" id="landCta" onclick="enterApp()">ไปกันเลย!</button>
+    <div class="land-lang"><button onclick="landLang('th')">ไทย</button><button onclick="landLang('ja')">日本語</button></div>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <nav class="rail" id="rail"></nav>
+  <main>
+    <section class="screen" id="s-overview"></section>
+    <section class="screen" id="s-day"></section>
+    <section class="screen" id="s-talk"></section>
+    <section class="screen" id="s-money"></section>
+    <section class="screen" id="s-more"></section>
+    <section class="screen" id="s-hotels"></section>
+    <section class="screen" id="s-restaurants"></section>
+    <section class="screen" id="s-sos"></section>
+    <section class="screen" id="s-ai"></section>
+    <section class="screen" id="s-report"></section>
+  </main>
+</div>
+<nav class="tabbar" id="tabbar"></nav>
+
+<div class="scrim" id="scrim" onclick="closeSheet()"></div>
+<aside class="sheet" id="sheet" role="dialog" aria-modal="true"></aside>
+<div class="big" id="big" role="dialog" aria-modal="true"></div>
+
+<script src="js/data.js"></script>
+<script src="js/phrases.js"></script>
+<script src="js/currency.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/store.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
