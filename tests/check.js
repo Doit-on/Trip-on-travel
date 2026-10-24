@@ -187,12 +187,23 @@ check(html.includes('css/app.css'), 'โหลด css/app.css');
 check(html.includes('viewport-fit=cover'), 'รองรับจอมือถือ (safe-area)');
 for (const id of G('Object.keys(RENDER)')) check(html.includes(`id="s-${id}"`), `มี section #s-${id}`);
 for (const m of src['app.js'].matchAll(/\$\('#([a-zA-Z]+)'\)/g)) {
-  const id = m[1], dynamicIds = ['talkList', 'restList', 'qcJ', 'qcT', 'exAmt', 'exCur', 'exPrev', 'exTitle', 'exDay', 'bAmt', 'bCur', 'hName', 'hAddr', 'hIn', 'hOut', 'hGps', 'gpsMsg', 'rName', 'rJa', 'rArea', 'rMeal', 'rDay', 'rAddr', 'rNote', 'rGps', 'rGpsMsg', 'tName', 'tStart', 'tPeople', 'aiLog', 'toast'];
+  const id = m[1], dynamicIds = ['talkList', 'restList', 'qcJ', 'qcT', 'exAmt', 'exCur', 'exPrev', 'exTitle', 'exDay', 'bAmt', 'bCur', 'hName', 'hAddr', 'hIn', 'hOut', 'hGps', 'gpsMsg', 'rName', 'rJa', 'rArea', 'rMeal', 'rDay', 'rAddr', 'rNote', 'rGps', 'rGpsMsg', 'impRestTxt', 'tName', 'tStart', 'tPeople', 'aiLog', 'toast'];
   check(html.includes(`id="${id}"`) || dynamicIds.includes(id) || new RegExp(`id="${id}"`).test(src['app.js']), `element #${id} มีอยู่จริง`);
 }
 
 /* 9. client cloud logic */
-section('8. Cloud ฝั่งแอป (merge / plan)');
+section('8. Cloud ฝั่งแอป (merge / plan / reorder / AI zone)');
+G(`ui.day = 0; state.days[0].stops = [{id:'meiji',leg:20},{id:'shibuya_sky',leg:20},{id:'omoide',leg:20}]; reorderStop(0, 2);`);
+eq(G(`state.days[0].stops.map(s=>s.id)`), ['shibuya_sky', 'omoide', 'meiji'], 'reorderStop ย้ายลำดับสถานที่ท่องเที่ยวขึ้น-ลงได้ถูกต้อง');
+eq(G(`detectDayZone(2)`), 'fuji', 'detectDayZone ตรวจจับโซนฟูจิของวันที่ 3 ได้ถูกต้อง');
+check(G(`buildSmartRecs('', 'fuji', 2).restaurants.length >= 5`), 'buildSmartRecs เสนอร้านอาหารในโซนฟูจิให้เลือกครบและตรงพื้นที่');
+check(G(`parseSheetRestRow(['tokyo-2026','','วันที่ 2','มื้อเที่ยง','Ogakiku','小川菊','คาวาโกเอะ','Kawagoe','35.9212, 139.4831','ปลาไหล']).day === 2`), 'parseSheetRestRow แยกข้อมูลแถวจากตาราง Sheet ได้ถูกต้องแม้พิมพ์ "วันที่ 2"');
+eq(G(`normDateIso('15/11/2569')`), '2026-11-15', 'normDateIso แปลงวันที่ พ.ศ. DD/MM/YYYY เป็น YYYY-MM-DD');
+eq(G(`hotelCoveredDays({checkin:'2026-11-09',checkout:'2026-11-13'}).length`), 5, 'hotelCoveredDays คืนค่าวันครอบคลุมครบทุกวันตั้งแต่เช็คอินถึงเช็คเอาท์ (5 วัน)');
+G(`state.hotels = [{id:'h1',name:'Shinjuku Hotel',gps:'35.69395, 139.70147',checkin:'2026-11-09',checkout:'2026-11-15'}]; syncTripDaysWithHotels(state.hotels[0]);`);
+eq(G(`state.days.length`), 7, 'syncTripDaysWithHotels ขยายจำนวนวันในทริปให้ครบตามวันเช็คเอาท์ของโรงแรมโดยอัตโนมัติ (9–15 พ.ย. = 7 วัน)');
+G(`state.days = state.days.slice(0, 5); state.hotels[0].checkout = '2026-11-13';`);
+check(G(`(() => { const p = buildPlanFromPrompt('วันที่ 4 อยากไปชิบูย่าสกาย สวนชินจูกุเกียวเอ็น ศาลเจ้าเมจิ และห้าแยกชิบูย่า จัดเส้นทางไม่ให้ย้อนให้หน่อย'); const idxG = p.stops.findIndex(s => s.id === 'gyoen'); const idxM = p.stops.findIndex(s => s.id === 'meiji'); const idxS = p.stops.findIndex(s => s.id === 'shibuyasky'); return p.day === 3 && idxG >= 0 && idxM >= 0 && idxS >= 0 && idxG < idxM && idxM < idxS; })()`), 'buildPlanFromPrompt สกัดสถานที่จากประโยคและเรียงลำดับเส้นทางจากโรงแรมชินจูกุ (ชินจูกุเกียวเอ็น -> เมจิ -> ชิบูย่าสกาย) โดยไม่ย้อนกลับ');
 G(`state.expenses = [{id:'a',amount:1,cur:'JPY',cat:'food',day:1},{id:'b',amount:2,cur:'JPY',cat:'food',day:1}]`);
 G(`state.restaurants = [{id:'r1',name:'Local Rest',meal:'lunch',day:1}]`);
 G(`mergeRemote({expenses:[{id:'b',amount:99,cur:'JPY',cat:'food',day:1},{id:'c',amount:3,cur:'JPY',cat:'food',day:1}], hotels:[], restaurants:[{id:'r1',name:'Old',meal:'lunch',day:1},{id:'r2',name:'Remote Rest',meal:'dinner',day:2}], customPlaces:{x:{name:{th:'X'}}}})`);

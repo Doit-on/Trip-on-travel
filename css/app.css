@@ -308,6 +308,9 @@ select.input{padding-right:8px}
 .hotel-top{display:flex;gap:12px;align-items:center}
 .hotel-dates{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
 .hotel-dates .chip{height:30px;font-size:13px;box-shadow:none}
+.hotel-days-cover{margin-top:8px;padding:8px 10px;border-radius:12px;background:var(--paper);border:1px dashed var(--line)}
+.hotel-days-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.hotel-days-list .mini-chip{margin-left:0;height:26px;font-size:12px;cursor:pointer}
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .tile{border-radius:var(--r-lg);padding:16px;text-align:left;display:flex;flex-direction:column;gap:4px;min-height:120px;transition:transform .2s var(--pop)}
 .tile:nth-child(1){transform:rotate(-1deg)} .tile:nth-child(4){transform:rotate(1deg)}

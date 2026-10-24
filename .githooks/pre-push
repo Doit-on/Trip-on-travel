@@ -1,0 +1,6 @@
+#!/bin/sh
+# ตรวจตัวเองก่อน push ทุกครั้ง — ถ้าไม่ผ่าน จะไม่ยอม push
+echo "🔍 Tabi Note self-check ก่อน push..."
+node tests/check.js || { echo "❌ self-check ไม่ผ่าน — ยกเลิก push"; exit 1; }
+node tests/e2e.js  || { echo "❌ E2E ไม่ผ่าน — ยกเลิก push"; exit 1; }
+echo "✅ ผ่านทั้งหมด"

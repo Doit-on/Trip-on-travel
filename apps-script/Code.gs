@@ -82,12 +82,15 @@ function handle_(req) {
   try {
     if (!props.getProperty('APP_KEY')) return out_({ ok: false, error: 'not_setup' });
     if (String(req.key || '') !== props.getProperty('APP_KEY')) return out_({ ok: false, error: 'unauthorized' });
+    if (req.geminiKey && String(req.geminiKey).trim()) {
+      props.setProperty('GEMINI_API_KEY', String(req.geminiKey).trim());
+    }
     var tripId = cleanId_(req.tripId);
     switch (req.action) {
       case 'ping':       return out_(ok_(ping_()));
       case 'pull':       return out_(ok_(pull_(need_(tripId))));
       case 'push':       return out_(ok_(push_(need_(tripId), req.state, req.by, Number(req.base) || 0)));
-      case 'places':     return out_(ok_({ places: readPlaces_() }));
+      case 'places':     return out_(ok_({ places: readPlaces_(), restaurants: readRestaurants_(tripId), hotels: readHotels_(tripId) }));
       case 'seedPlaces': return out_(ok_({ added: seedPlaces_(req.places || {}) }));
       case 'photo':      return out_(ok_(savePhoto_(need_(tripId), req)));
       case 'delPhoto':   return out_(ok_(delPhoto_(need_(tripId), req.fileId)));
@@ -101,11 +104,29 @@ function handle_(req) {
 }
 
 /* ============ actions ============ */
-function ping_() {
+function getGeminiKey_() {
   var p = PropertiesService.getScriptProperties();
+  var k = p.getProperty('GEMINI_API_KEY');
+  if (k && String(k).trim()) return String(k).trim();
+  try {
+    var all = p.getProperties ? (p.getProperties() || {}) : {};
+    var names = Object.keys(all);
+    for (var i = 0; i < names.length; i++) {
+      if (/gemini|api_key|^AIza|^AQ\./i.test(names[i].trim()) && String(all[names[i]] || '').trim()) {
+        return String(all[names[i]]).trim();
+      }
+      if (/^AIza|^AQ\./.test(String(all[names[i]] || '').trim()) && !/^(SHEET_ID|FOLDER_ID|APP_KEY)$/.test(names[i].trim())) {
+        return String(all[names[i]]).trim();
+      }
+    }
+  } catch (e) { /* ignore */ }
+  return '';
+}
+
+function ping_() {
   return {
     version: VERSION,
-    ai: !!p.getProperty('GEMINI_API_KEY'),
+    ai: !!getGeminiKey_(),
     sheetUrl: ss_().getUrl(),
     folderUrl: folder_().getUrl()
   };
@@ -120,12 +141,13 @@ function pull_(tripId) {
   });
   var sheetRests = readRestaurants_(tripId);
   var sheetHotels = readHotels_(tripId);
+  var hasAi = !!getGeminiKey_();
   if (!row) {
-    return { state: null, updatedAt: 0, photos: photos, restaurants: sheetRests, hotels: sheetHotels };
+    return { state: null, updatedAt: 0, photos: photos, restaurants: sheetRests, hotels: sheetHotels, ai: hasAi };
   }
   var st = JSON.parse(row.json);
   mergeSheetRows_(st, sheetRests, sheetHotels, true);
-  return { state: st, updatedAt: row.updatedAt, updatedBy: row.updatedBy, photos: photos, restaurants: st.restaurants || [], hotels: st.hotels || [] };
+  return { state: st, updatedAt: row.updatedAt, updatedBy: row.updatedBy, photos: photos, restaurants: st.restaurants || [], hotels: st.hotels || [], ai: hasAi };
 }
 
 function push_(tripId, state, by, base) {
@@ -197,49 +219,77 @@ function normGps_(text) {
   return lat.toFixed(5) + ', ' + lng.toFixed(5);
 }
 
-/** อ่านร้านอาหารจากชีต Restaurants (รองรับทั้งแถวมาตรฐานของแอป และแถวที่ผู้ใช้พิมพ์เพิ่มเองใน Sheet ทุกคอลัมน์) */
+function parseDayNum_(v) {
+  if (v === '' || v == null) return null;
+  if (typeof v === 'number' && v >= 0 && v <= 30) return Math.round(v);
+  var s = String(v).trim();
+  if (/^\d{1,2}$/.test(s)) return parseInt(s, 10);
+  var m = s.match(/(?:วันที่|วัน|day|d)\s*(\d{1,2})/i);
+  if (m) return parseInt(m[1], 10);
+  return null;
+}
+
+/** อ่านร้านอาหารจากชีต Restaurants (รองรับทั้งแถวมาตรฐานของแอป แถวที่ผู้ใช้พิมพ์เพิ่มเองทุกคอลัมน์ และร้านอาหารในชีต Places) */
 function readRestaurants_(tripId) {
-  var out = [];
-  rows_('Restaurants').forEach(function (r, idx) {
+  var allRows = rows_('Restaurants');
+  var parseRow = function (r, idx, ignoreTrip) {
     var c0 = String(r[0] || '').trim();
     var rTrip = cleanId_(c0);
-    // ถ้าคอลัมน์แรกเป็นรหัสทริปอื่นที่ไม่ใช่ทริปนี้ ให้ข้าม (แต่ถ้าเว้นว่างไว้ ถือว่าเป็นของทริปปัจจุบัน)
-    if (rTrip && tripId && rTrip !== tripId && /-\d{4}$|^e2e|^trip/i.test(rTrip)) return;
+    if (!ignoreTrip && rTrip && tripId && rTrip !== tripId && /-\d{4}$|^e2e|^trip/i.test(rTrip)) return null;
 
     var day = 0, meal = 'lunch', name = '', nameJa = '', area = '', address = '', gps = '', note = '';
-    var c2 = String(r[2] || '').trim(), c4 = String(r[4] || '').trim();
-    var c2IsNum = c2 === '' || /^\d{1,2}$/.test(c2);
+    var c2 = String(r[2] || '').trim(), c3 = String(r[3] || '').trim(), c4 = String(r[4] || '').trim();
+    var d2 = parseDayNum_(r[2]), d6 = parseDayNum_(r[6]), d5 = parseDayNum_(r[5]);
+    var c2IsDayOrEmpty = (c2 === '' || d2 !== null || /^[-–—]$/.test(c2));
 
-    if (c2IsNum && c4) {
+    if (c2IsDayOrEmpty && c4) {
       // รูปแบบคอลัมน์มาตรฐานของชีต Restaurants: [tripId, id, day, meal, name, nameJa, area, address, gps, note]
-      day = Math.max(0, parseInt(c2, 10) || 0);
-      meal = normMeal_(r[3]);
+      day = d2 || 0;
+      meal = normMeal_(c3);
       name = c4;
       nameJa = String(r[5] || '').trim();
       area = String(r[6] || '').trim();
       address = String(r[7] || '').trim();
       gps = normGps_(r[8]) || normGps_(r[7]);
       note = String(r[9] || '').trim();
-    } else if (c2 && !c2IsNum) {
+    } else if (c2 && !c2IsDayOrEmpty && !/^(breakfast|lunch|dinner|cafe|late|เช้า|เที่ยง|เย็น|มื้อ)/i.test(c2)) {
       // กรณีผู้ใช้กรอกชื่อร้านที่คอลัมน์ C เหมือนชีต Hotels: [tripId, id, name, nameJa, area, meal, day, address, gps, note]
       name = c2;
-      nameJa = String(r[3] || '').trim();
-      area = String(r[4] || '').trim();
-      meal = normMeal_(r[5] || r[3]);
-      day = Math.max(0, parseInt(r[6], 10) || parseInt(r[5], 10) || 0);
+      nameJa = c3;
+      area = c4;
+      meal = normMeal_(r[5] || c3);
+      day = d6 != null ? d6 : (d5 != null ? d5 : 0);
       address = String(r[7] || '').trim();
       gps = normGps_(r[8]) || normGps_(r[7]);
       note = String(r[9] || '').trim();
-    } else if (!rTrip && String(r[1] || '').trim() && !c4) {
+    } else if (c4) {
+      name = c4;
+      day = d2 || 0;
+      meal = normMeal_(c3);
+      nameJa = String(r[5] || '').trim();
+      area = String(r[6] || '').trim();
+      address = String(r[7] || '').trim();
+      gps = normGps_(r[8]) || normGps_(r[7]);
+      note = String(r[9] || '').trim();
+    } else if (!rTrip && String(r[1] || '').trim()) {
       name = String(r[1] || '').trim();
-    } else if (c0 && !c4 && !c2) {
+      area = c2;
+      gps = normGps_(r[3]) || normGps_(r[4]);
+    } else if (c0 && !c4 && !c2 && !/-\d{4}$|^e2e|^trip/i.test(rTrip)) {
       name = c0;
     }
 
-    if (!name) return;
+    if (!name) return null;
+    // ค้นหา GPS ถ้าผู้ใช้เผลอวางพิกัดไว้ในคอลัมน์อื่น
+    if (!gps) {
+      for (var k = 0; k < r.length; k++) {
+        var g = normGps_(r[k]);
+        if (g) { gps = g; break; }
+      }
+    }
     var id = cleanId_(r[1]);
     if (!id || id === cleanId_(name)) id = 'rs_' + (idx + 1) + '_' + cleanId_(name).slice(0, 24);
-    out.push({
+    return {
       id: id,
       day: day,
       meal: meal,
@@ -249,7 +299,40 @@ function readRestaurants_(tripId) {
       address: address,
       gps: gps,
       note: note
+    };
+  };
+
+  var out = [];
+  allRows.forEach(function (r, idx) {
+    var item = parseRow(r, idx, false);
+    if (item) out.push(item);
+  });
+  // ถ้ากรองด้วย tripId แล้วไม่เจอเลย แต่ในชีต Restaurants มีข้อมูลอยู่ (เช่น รหัสทริปในชีตต่างจากในแอป) ให้ดึงมาทั้งหมด
+  if (!out.length && allRows.length) {
+    allRows.forEach(function (r, idx) {
+      var item = parseRow(r, idx, true);
+      if (item) out.push(item);
     });
+  }
+  // ถ้าระบุหมวด food / ร้านอาหาร ไว้ในชีต Places ให้ดึงมารวมในลิสต์ร้านอาหารด้วย
+  rows_('Places').forEach(function (r, idx) {
+    var art = String(r[6] || '').trim().toLowerCase();
+    if (/^(food|restaurant|cafe|ร้านอาหาร|คาเฟ่|ของกิน)$/.test(art) && String(r[1] || '').trim()) {
+      var pname = String(r[1]).trim();
+      if (!out.some(function (x) { return x.name.toLowerCase() === pname.toLowerCase(); })) {
+        out.push({
+          id: 'rp_' + (cleanId_(r[0]) || (idx + 1)),
+          day: 0,
+          meal: art === 'cafe' || art === 'คาเฟ่' ? 'cafe' : 'lunch',
+          name: pname,
+          nameJa: String(r[2] || '').trim(),
+          area: String(r[4] || '').trim(),
+          address: '',
+          gps: normGps_(r[8]),
+          note: String(r[10] || '').trim()
+        });
+      }
+    }
   });
   return out;
 }
@@ -266,9 +349,24 @@ function readHotels_(tripId) {
     var fmtDate = function (v) {
       if (!v) return '';
       if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) {
-        return v.getFullYear() + '-' + ('0' + (v.getMonth() + 1)).slice(-2) + '-' + ('0' + v.getDate()).slice(-2);
+        var yr = v.getFullYear();
+        if (yr >= 2400) yr -= 543;
+        return yr + '-' + ('0' + (v.getMonth() + 1)).slice(-2) + '-' + ('0' + v.getDate()).slice(-2);
       }
-      return String(v).trim().slice(0, 10);
+      var s = String(v).trim();
+      var mIso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+      if (mIso) {
+        var y1 = parseInt(mIso[1], 10);
+        if (y1 >= 2400) y1 -= 543;
+        return y1 + '-' + ('0' + parseInt(mIso[2], 10)).slice(-2) + '-' + ('0' + parseInt(mIso[3], 10)).slice(-2);
+      }
+      var mDmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+      if (mDmy) {
+        var y2 = parseInt(mDmy[3], 10);
+        if (y2 >= 2400) y2 -= 543;
+        return y2 + '-' + ('0' + parseInt(mDmy[2], 10)).slice(-2) + '-' + ('0' + parseInt(mDmy[1], 10)).slice(-2);
+      }
+      return s.slice(0, 10);
     };
     var ci = fmtDate(r[5]), co = fmtDate(r[6]);
     out.push({
@@ -409,7 +507,7 @@ function delPhoto_(tripId, fileId) {
 /* ============ Gemini ============ */
 function askAI_(req) {
   var p = PropertiesService.getScriptProperties();
-  var key = p.getProperty('GEMINI_API_KEY');
+  var key = getGeminiKey_();
   if (!key) throw new Error('no_ai_key');
   var model = p.getProperty('GEMINI_MODEL') || 'gemini-2.5-flash';
   var lang = req.lang === 'ja' ? 'ja' : 'th';

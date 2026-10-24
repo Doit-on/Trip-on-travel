@@ -151,16 +151,21 @@ function mergeSheetItems(sheetRests = [], sheetHotels = [], sheetWins = true) {
     state.hotels = state.hotels || [];
     sheetHotels.forEach(sh => {
       if (!sh || !sh.name || !sh.checkin || !sh.checkout || del.has(String(sh.id))) return;
-      const found = state.hotels.find(x => x.id === sh.id || (norm(x.name) && norm(x.name) === norm(sh.name)));
+      const cin = typeof normDateIso === 'function' ? (normDateIso(sh.checkin) || sh.checkin) : sh.checkin;
+      let cout = typeof normDateIso === 'function' ? (normDateIso(sh.checkout) || sh.checkout) : sh.checkout;
+      if (cout <= cin && typeof addDaysIso === 'function') cout = addDaysIso(cin, 1);
+      const normSh = { ...sh, checkin: cin, checkout: cout };
+      const found = state.hotels.find(x => x.id === normSh.id || (norm(x.name) && norm(x.name) === norm(normSh.name)));
       if (!found) {
-        state.hotels.push({ ...sh, id: sh.id || ('h_sh_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)) });
+        state.hotels.push({ ...normSh, id: normSh.id || ('h_sh_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)) });
         changed++;
       } else if (sheetWins) {
         ['name', 'address', 'gps', 'checkin', 'checkout'].forEach(f => {
-          if (sh[f] !== undefined && sh[f] !== '' && sh[f] !== found[f]) { found[f] = sh[f]; changed++; }
+          if (normSh[f] !== undefined && normSh[f] !== '' && normSh[f] !== found[f]) { found[f] = normSh[f]; changed++; }
         });
       }
     });
+    if (typeof syncTripDaysWithHotels === 'function') syncTripDaysWithHotels();
   }
 
   if (changed > 0) saveState({ localOnly: true });
@@ -373,7 +378,12 @@ function parseAiRecs(text) {
 }
 function parsePlan(text) {
   try {
-    const j = JSON.parse(String(text).replace(/^```(json)?|```$/g, '').trim());
+    const raw = String(text || '').trim();
+    const jsonCandidate = raw.includes('PLAN_JSON:')
+      ? raw.slice(raw.indexOf('PLAN_JSON:') + 10)
+      : raw;
+    const j = JSON.parse(jsonCandidate.replace(/^```(json)?|```$/g, '').trim());
+    const catalog = typeof getAllCatalogPlaces === 'function' ? getAllCatalogPlaces() : PLACES;
     const newPlaces = {};
     (j.newPlaces || []).forEach(np => {
       if (np && np.id && np.name) {
@@ -382,6 +392,13 @@ function parsePlan(text) {
         const aTh = typeof np.area === 'object' ? (np.area.th || np.area.ja || '') : String(np.area || '');
         const aJa = typeof np.area === 'object' ? (np.area.ja || np.area.th || '') : String(np.area || '');
         newPlaces[np.id] = { name: { th, ja }, ro: ja || th, area: { th: aTh, ja: aJa }, art: np.art || 'city', dur: Number(np.dur) || 60, gps: np.gps || '', mapcode: '', hi: { th: [], ja: [] }, miss: { th: [], ja: [] }, transit: { th: '', ja: '' }, custom: true };
+      }
+    });
+    (j.stops || []).forEach(s => {
+      if (s && s.id && !PLACES[s.id] && !newPlaces[s.id] && catalog[s.id]) {
+        const cp = { ...catalog[s.id], custom: true };
+        delete cp.zoneKey; delete cp.fromUserDb;
+        newPlaces[s.id] = cp;
       }
     });
     const stops = (j.stops || []).filter(s => s && (PLACES[s.id] || newPlaces[s.id])).map(s => ({ id: s.id, leg: Math.max(0, Math.min(300, parseInt(s.leg, 10) || 30)) }));
