@@ -16,9 +16,9 @@ const SHARED_FIELDS = ['trip', 'days', 'hotels', 'restaurants', 'expenses', 'bud
 let CLOUD = (() => {
   try {
     const saved = JSON.parse(localStorage.getItem(CLOUD_KEY) || '{}');
-    return { url: DEFAULT_CLOUD_URL, key:'', tripId:'', by:'', lastSync:0, dirty:false, ai:false, ...saved, ...(saved.url ? {} : { url: DEFAULT_CLOUD_URL }) };
+    return { url: DEFAULT_CLOUD_URL, key:'', tripId:'', by:'', aiKey:'', lastSync:0, dirty:false, ai:false, ...saved, ...(saved.url ? {} : { url: DEFAULT_CLOUD_URL }) };
   }
-  catch (e) { return { url: DEFAULT_CLOUD_URL, key:'', tripId:'', by:'', lastSync:0, dirty:false, ai:false }; }
+  catch (e) { return { url: DEFAULT_CLOUD_URL, key:'', tripId:'', by:'', aiKey:'', lastSync:0, dirty:false, ai:false }; }
 })();
 const saveCloud = () => localStorage.setItem(CLOUD_KEY, JSON.stringify(CLOUD));
 const cloudOn = () => !!(CLOUD.url && CLOUD.key && CLOUD.tripId);
@@ -37,7 +37,8 @@ async function api(action, data = {}, ms = 25000) {
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
   try {
     // ส่งเป็น text/plain เพื่อไม่ให้เบราว์เซอร์ทำ CORS preflight (Apps Script ไม่รองรับ OPTIONS)
-    const r = await fetch(CLOUD.url, { method:'POST', body: JSON.stringify({ action, key: CLOUD.key, tripId: CLOUD.tripId, by: CLOUD.by, ...data }), signal: ctl.signal, redirect:'follow' });
+    const payload = { action, key: CLOUD.key, tripId: CLOUD.tripId, by: CLOUD.by, ...(CLOUD.aiKey ? { geminiKey: CLOUD.aiKey } : {}), ...data };
+    const r = await fetch(CLOUD.url, { method:'POST', body: JSON.stringify(payload), signal: ctl.signal, redirect:'follow' });
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'error');
     return j;
@@ -86,7 +87,12 @@ async function pullNow(silent = false) {
   setSync('busy');
   try {
     const r = await api('pull');
-    const sheetRests = r.restaurants || (r.state && r.state.restaurants) || [];
+    if (r.ai !== undefined && r.ai !== CLOUD.ai) { CLOUD.ai = !!r.ai; saveCloud(); }
+    let sheetRests = r.restaurants || (r.state && r.state.restaurants) || [];
+    if (!r.restaurants) {
+      const directRests = await fetchDirectSheetRestaurants();
+      if (directRests.length) sheetRests = [...sheetRests, ...directRests];
+    }
     const sheetHotels = r.hotels || (r.state && r.state.hotels) || [];
     if (r.state && r.updatedAt > CLOUD.lastSync) {
       if (CLOUD.dirty) { mergeRemote(r.state); CLOUD.lastSync = r.updatedAt; saveCloud(); schedulePush(); }
@@ -111,7 +117,10 @@ async function pullNow(silent = false) {
 }
 
 function applyRemote(remote) {
+  const prevRests = [...(state.restaurants || [])];
+  const prevHotels = [...(state.hotels || [])];
   SHARED_FIELDS.forEach(k => { if (remote[k] !== undefined) state[k] = remote[k]; });
+  mergeSheetItems(prevRests, prevHotels, false);
   saveState({ localOnly: true });
 }
 
@@ -196,22 +205,128 @@ function deleteCloudPhoto(url) {
   if (id && cloudOn()) api('delPhoto', { fileId: id }).catch(e => console.warn('[photo]', e.message));
 }
 
-/* ---------- sheet places ---------- */
+/* ---------- sheet places & direct sheet reader ---------- */
+function normMealClient(m) {
+  const s = String(m || '').trim().toLowerCase();
+  if (/breakfast|morning|เช้า|朝/.test(s)) return 'breakfast';
+  if (/dinner|evening|เย็น|ค่ำ|夜|夕/.test(s)) return 'dinner';
+  if (/cafe|coffee|dessert|sweet|คาเฟ่|ขนม|ของหวาน|กาแฟ|カフェ|甘/.test(s)) return 'cafe';
+  if (/late|night|snack|ดึก|กินเล่น|ของว่าง|夜食/.test(s)) return 'late';
+  return 'lunch';
+}
+
+function parseSheetRestRow(cells, idx = 0) {
+  const r = cells.map(v => String(v ?? '').trim());
+  if (!r.some(Boolean)) return null;
+  // ข้ามแถวหัวตาราง
+  if (/^(tripid|id|ชื่อร้าน|name)$/i.test(r[0]) || /^(id|day|name|ชื่อร้าน)$/i.test(r[1]) || /^(name|ชื่อร้าน)$/i.test(r[4])) return null;
+  const parseDay = v => {
+    const m = String(v || '').match(/(?:วันที่|วัน|day|d|^)\s*(\d{1,2})\b/i);
+    return m ? Math.max(0, Math.min(30, parseInt(m[1], 10))) : null;
+  };
+  let day = 0, meal = 'lunch', name = '', nameJa = '', area = '', address = '', gps = '', note = '';
+  if (r.length >= 5 && (r[2] === '' || parseDay(r[2]) !== null || /^[-–—]$/.test(r[2])) && r[4]) {
+    day = parseDay(r[2]) || 0;
+    meal = normMealClient(r[3]);
+    name = r[4]; nameJa = r[5] || ''; area = r[6] || ''; address = r[7] || '';
+    gps = (typeof parseGps === 'function' && (parseGps(r[8]) || parseGps(r[7]))) || '';
+    note = r[9] || '';
+  } else if (r.length >= 3 && r[2] && parseDay(r[2]) === null && !/^(breakfast|lunch|dinner|cafe|late|เช้า|เที่ยง|เย็น|มื้อ)/i.test(r[2]) && (/-\d{4}$|^e2e|^trip/i.test(r[0]) || /^r[_0-9]/i.test(r[1]))) {
+    name = r[2]; nameJa = r[3] || ''; area = r[4] || '';
+    meal = normMealClient(r[5] || r[3]);
+    day = parseDay(r[6]) ?? parseDay(r[5]) ?? 0;
+    address = r[7] || '';
+    gps = (typeof parseGps === 'function' && (parseGps(r[8]) || parseGps(r[7]))) || '';
+    note = r[9] || '';
+  } else {
+    // กรณีวางตารางแบบย่อ เช่น [ชื่อร้าน, ชื่อญี่ปุ่น/ย่าน, มื้อ, วันที่, GPS, โน้ต] หรือ [วันที่, มื้อ, ชื่อร้าน, ย่าน, GPS, โน้ต]
+    if (parseDay(r[0]) !== null && r[2]) {
+      day = parseDay(r[0]) || 0; meal = normMealClient(r[1]); name = r[2]; area = r[3] || ''; note = r[4] || '';
+    } else {
+      name = r[0] || r[1] || r[2] || '';
+      nameJa = r[1] && /[\u3040-\u30ff\u4e00-\u9faf]/.test(r[1]) ? r[1] : '';
+      area = nameJa ? (r[2] || '') : (r[1] || '');
+      meal = normMealClient(r[3] || r[2]);
+      day = parseDay(r[4]) ?? parseDay(r[3]) ?? 0;
+      note = r[5] || r[4] || '';
+    }
+  }
+  if (!name) return null;
+  if (!gps && typeof parseGps === 'function') {
+    for (const cell of r) { const g = parseGps(cell); if (g) { gps = g; break; } }
+  }
+  const clean = s => String(s || '').trim().replace(/[^\w\-ก-๙]/g, '').slice(0, 24);
+  const id = (r[1] && /^r[_0-9a-z]/i.test(r[1]) ? clean(r[1]) : '') || ('rs_' + (idx + 1) + '_' + clean(name));
+  return { id, day, meal, name, nameJa, area, address, gps, note };
+}
+
+function fetchDirectSheetRestaurants() {
+  return new Promise(resolve => {
+    const m = String(CLOUD.sheetUrl || '').match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    if (!m || typeof document === 'undefined') return resolve([]);
+    const sheetId = m[1];
+    const cbName = '__tabiGviz_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const script = document.createElement('script');
+    const timer = setTimeout(() => { cleanup(); resolve([]); }, 4500);
+    function cleanup() {
+      clearTimeout(timer);
+      try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = function (resp) {
+      cleanup();
+      try {
+        const rows = (resp && resp.table && resp.table.rows) || [];
+        const list = [];
+        rows.forEach((row, idx) => {
+          const cells = (row.c || []).map(c => (c && (c.f ?? c.v)) ?? '');
+          const item = parseSheetRestRow(cells, idx);
+          if (item) list.push(item);
+        });
+        resolve(list);
+      } catch (e) { resolve([]); }
+    };
+    script.onerror = () => { cleanup(); resolve([]); };
+    script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${cbName}&sheet=Restaurants`;
+    document.head.appendChild(script);
+  });
+}
+
 async function pullPlaces() {
   if (!cloudOn()) return 0;
   try {
     const r = await api('places');
-    localStorage.setItem(SHEET_PLACES_KEY, JSON.stringify(r.places || {}));
+    const pl = r.places || {};
+    localStorage.setItem(SHEET_PLACES_KEY, JSON.stringify(pl));
     mergePlaces();
-    return Object.keys(r.places || {}).length;
+    // ถ้าระบบส่ง restaurants / hotels มาพร้อม places หรือมีหมวด food ในชีต Places ให้ซิงก์เข้าลิสต์ร้านอาหารทันที
+    const fromPlacesFood = [];
+    Object.entries(pl).forEach(([id, p]) => {
+      if (p && /^(food|restaurant|cafe|ร้านอาหาร|คาเฟ่|ของกิน)$/i.test(String(p.art || '').trim())) {
+        fromPlacesFood.push({
+          id: 'rp_' + id, day: 0, meal: /cafe|คาเฟ่/i.test(p.art) ? 'cafe' : 'lunch',
+          name: p.name?.th || id, nameJa: p.name?.ja || '', area: p.area?.th || '', address: '',
+          gps: p.gps || '', note: (p.hi?.th || []).join(' · '),
+        });
+      }
+    });
+    mergeSheetItems([...(r.restaurants || []), ...fromPlacesFood], r.hotels || [], true);
+    return Object.keys(pl).length;
   } catch (e) { console.warn('[places]', e.message); return -1; }
 }
 async function pullSheetData(btn) {
   if (!cloudOn()) { openCloud(); return; }
   btn && btn.classList.add('loading');
   try {
+    const beforeCount = (state.restaurants || []).length;
     await pullPlaces();
-    await pullNow(false);
+    const directRests = await fetchDirectSheetRestaurants();
+    if (directRests.length) mergeSheetItems(directRests, [], true);
+    await pullNow(true);
+    const afterCount = (state.restaurants || []).length;
+    const diff = Math.max(0, afterCount - beforeCount);
+    toast(diff > 0 ? t('sheet_synced', { n: diff }) : t('sync_pulled', { who: 'Google Sheet' }));
+    rerender();
   } finally { btn && btn.classList.remove('loading'); }
 }
 async function seedPlaces(btn) {
@@ -279,6 +394,7 @@ function parsePlan(text) {
 /* ---------- settings sheet ---------- */
 function openCloud() {
   const on = cloudOn();
+  const hasAi = CLOUD.ai || !!CLOUD.aiKey;
   openSheet(`<h2 class="sheet-title">${t('cloud_title')}</h2>
     <p class="muted small">${t('cloud_sub')}</p>
     ${on ? `<div class="cloud-status s-${syncState}"><span class="sync-dot s-${syncState}"></span><div class="grow"><b>${t('sync_' + syncState)}</b><div class="small muted">${t('trip_code')}: ${esc(CLOUD.tripId)}${CLOUD.lastSync ? ' · ' + new Date(CLOUD.lastSync).toLocaleString(locale(), { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : ''}${syncMsg ? ' · ' + esc(syncMsg) : ''}</div></div>
@@ -288,6 +404,7 @@ function openCloud() {
     <div class="two"><div><label class="lbl">APP_KEY</label><input id="cKey" class="input mono" value="${esc(CLOUD.key)}" autocomplete="off"></div>
       <div><label class="lbl">${t('trip_code')}</label><input id="cTrip" class="input mono" placeholder="tokyo-fuji-2026" value="${esc(CLOUD.tripId || slugTrip())}"></div></div>
     <label class="lbl">${t('your_name')}</label><input id="cBy" class="input" placeholder="${t('your_name_ph')}" value="${esc(CLOUD.by)}">
+    <label class="lbl">GEMINI_API_KEY (วางคีย์ที่นี่เพื่อเปิด AI ได้ทันที)</label><input id="cAiKey" class="input mono" placeholder="AIzaSy... หรือวางคีย์ Gemini ที่นี่" value="${esc(CLOUD.aiKey || '')}" autocomplete="off">
     <div class="actions"><button class="btn btn-soft" onclick="testCloud(this)">${t('cloud_test')}</button><button class="btn btn-ink" onclick="connectCloud(this)">${on ? t('save') : t('cloud_connect')}</button></div>
     ${on ? `
     <h3 class="sec">${t('cloud_tools')}</h3>
@@ -296,14 +413,16 @@ function openCloud() {
       ${CLOUD.sheetUrl ? `<a class="chip" href="${esc(CLOUD.sheetUrl)}" target="_blank" rel="noopener">${ic('chart')}Google Sheet</a>` : ''}
       ${CLOUD.folderUrl ? `<a class="chip" href="${esc(CLOUD.folderUrl)}" target="_blank" rel="noopener">${ic('camera')}Google Drive</a>` : ''}
       <button class="chip" onclick="seedPlaces(this)">${ic('pin')}${t('seed_places')}</button>
-      <button class="chip" onclick="pullPlaces().then(n=>{toast(n>=0?t('places_pulled',{n}):t('cloud_err',{e:''}));rerender()})">${ic('refresh')}${t('pull_places')}</button>
+      <button class="chip" onclick="pullSheetData(this)">${ic('refresh')}${t('pull_sheet')}</button>
     </div>
-    <p class="note">${CLOUD.ai ? '✨ ' + t('ai_on') : t('ai_off')}</p>
+    <p class="note">${hasAi ? '✨ ' + t('ai_on') : t('ai_off')}</p>
     <button class="btn btn-danger wide" style="margin-top:14px" onclick="disconnectCloud()">${t('cloud_disconnect')}</button>` : `<p class="note">${t('cloud_help')}</p>`}`);
 }
 const slugTrip = () => (tx(state.trip.name).toLowerCase().replace(/[^a-z0-9ก-๙]+/g, '-').replace(/^-|-$/g, '') || 'trip') + '-' + state.trip.start.slice(0, 4);
 function readCloudForm() {
-  return { url: $('#cUrl').value.trim(), key: $('#cKey').value.trim(), tripId: $('#cTrip').value.trim().replace(/[^\w\-ก-๙]/g, '').slice(0, 60), by: $('#cBy').value.trim() };
+  const f = { url: $('#cUrl').value.trim(), key: $('#cKey').value.trim(), tripId: $('#cTrip').value.trim().replace(/[^\w\-ก-๙]/g, '').slice(0, 60), by: $('#cBy').value.trim() };
+  if ($('#cAiKey')) f.aiKey = $('#cAiKey').value.trim();
+  return f;
 }
 async function testCloud(btn, form = readCloudForm()) {
   if (!/^(https:\/\/script\.google(usercontent)?\.com\/|http:\/\/(localhost|127\.0\.0\.1)[:/])/.test(form.url)) { toast(t('cloud_bad_url')); return null; }
@@ -312,8 +431,11 @@ async function testCloud(btn, form = readCloudForm()) {
   Object.assign(CLOUD, form);
   try {
     const r = await api('ping', {}, 20000);
-    Object.assign(CLOUD, { ai: r.ai, sheetUrl: r.sheetUrl, folderUrl: r.folderUrl });
-    toast(t('cloud_ok', { ai: r.ai ? '✨ AI' : '' }));
+    const hasAi = !!(r.ai || CLOUD.aiKey);
+    Object.assign(CLOUD, { ai: hasAi, sheetUrl: r.sheetUrl, folderUrl: r.folderUrl });
+    saveCloud();
+    if (btn && $('#cUrl')) { openCloud(); rerender(); }
+    toast(t('cloud_ok', { ai: hasAi ? '✨ AI' : '' }));
     return r;
   } catch (e) {
     Object.assign(CLOUD, keep);

@@ -253,6 +253,7 @@ function renderDay() {
   ui.day = Math.min(ui.day, state.days.length - 1);
   const i = ui.day, day = state.days[i], ld = loadOf(i), s = ld.s;
   const legIc = m => (day.mode === 'transit' && m <= 10) ? 'walk' : MODES[day.mode].ic;
+  const nStops = day.stops.length;
 
   let tl = '';
   s.items.forEach(it => {
@@ -265,9 +266,18 @@ function renderDay() {
         ${it.from && it.to ? `<a class="leg-go" href="${dirUrl(it.from, it.to, legIc(it.min) === 'walk' ? 'walk' : day.mode)}" target="_blank" rel="noopener">${t('open_route')}</a>` : ''}</div></div>`;
     } else {
       const p = it.place, nPh = (photos[it.id] || []).length;
-      tl += `<div class="stop"><div class="time">${hm(it.time)}</div>
-        <div class="place-wrap"><button class="place" onclick="openPlace('${it.id}')"><div class="thumb">${ART[p.art]}${nPh ? `<span class="ph-badge">${nPh}</span>` : ''}</div>
-        <div class="grow"><div class="t">${esc(pName(p))}</div><div class="s">${esc(tx(p.area))} · ${t('stay_for', { d: durTxt(p.dur) })}</div></div></button>
+      tl += `<div class="stop stop-item" data-stop-idx="${it.idx}" onpointerdown="holdStopDrag(event,${it.idx})"><div class="time">${hm(it.time)}</div>
+        <div class="place-wrap"><div class="place">
+          ${nStops > 1 ? `<button type="button" class="drag-handle" onpointerdown="startStopDrag(event,${it.idx})" title="${t('drag_hint')}" aria-label="drag">⠿</button>
+          <div class="stop-tools">
+            <button type="button" class="stop-mv" onclick="moveStop(${it.idx},-1)" ${it.idx === 0 ? 'disabled' : ''} aria-label="up">↑</button>
+            <button type="button" class="stop-mv" onclick="moveStop(${it.idx},1)" ${it.idx === nStops - 1 ? 'disabled' : ''} aria-label="down">↓</button>
+          </div>` : ''}
+          <button type="button" class="grow" style="display:flex;gap:12px;align-items:center;text-align:left;min-width:0" onclick="openPlace('${it.id}')">
+            <div class="thumb">${ART[p.art]}${nPh ? `<span class="ph-badge">${nPh}</span>` : ''}</div>
+            <div class="grow"><div class="t">${esc(pName(p))}</div><div class="s">${esc(tx(p.area))} · ${t('stay_for', { d: durTxt(p.dur) })}</div></div>
+          </button>
+        </div>
         <button class="rm" onclick="removeStop(${it.idx})" aria-label="remove">${ic('x')}</button></div></div>`;
     }
   });
@@ -286,7 +296,11 @@ function renderDay() {
   <div class="seg">${Object.keys(MODES).map(m => `<button class="${day.mode === m ? 'on' : ''}" onclick="setMode('${m}')">${ic(MODES[m].ic)}${t('mode_' + m)}</button>`).join('')}</div>
   <div class="meter lv-${ld.lv}"><div class="meter-bar"><i style="width:${ld.pct}%"></i></div>
     <div><b>${t('lv_' + ld.lv)}</b> · ${ld.n ? t('meter_txt', { n: ld.n, total: durTxt(s.total), travel: durTxt(s.travel) }) : t('meter_empty')}</div></div>
-  <label class="start-time">${t('start_at')} <input type="time" value="${day.start}" onchange="setStart(this.value)"></label>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <label class="start-time">${t('start_at')} <input type="time" value="${day.start}" onchange="setStart(this.value)"></label>
+    ${nStops > 1 ? `<button class="chip c-matcha" onclick="sortDayByGps(${i})">✨ ${t('sort_route')}</button>` : ''}
+  </div>
+  ${nStops > 1 ? `<div class="small muted" style="margin-top:4px">💡 ${t('drag_hint')}</div>` : ''}
   <div class="tl">${tl}</div>
   <div class="day-actions">
     <button class="btn btn-ink" onclick="openAddPlace()">${ic('plus')}${t('add_place')}</button>
@@ -302,7 +316,7 @@ function renderDay() {
   ${day.mode === 'transit' && day.stops.length ? `<p class="note">${t('transit_hint')}</p>` : ''}`;
 }
 function dayNav(d) { ui.day = Math.max(0, Math.min(state.days.length - 1, ui.day + d)); renderDay(); }
-function setMode(m) { state.days[ui.day].mode = m; saveState(); renderDay(); }
+function setMode(m) { state.days[ui.day].mode = m; recalcDayLegs(ui.day); saveState(); renderDay(); }
 function setStart(v) { if (v) { state.days[ui.day].start = v; saveState(); renderDay(); } }
 function renameDay(v) {
   v = v.trim(); if (!v) return renderDay();
@@ -312,9 +326,130 @@ function renameDay(v) {
 }
 function removeStop(idx) {
   const d = state.days[ui.day], [rm] = d.stops.splice(idx, 1);
+  recalcDayLegs(ui.day);
   saveState(); renderDay();
   toast(t('removed', { p: pName(placeOf(rm.id)) }));
 }
+function estLegMin(g1, g2, mode = 'transit') {
+  const km = typeof gpsDistKm === 'function' ? gpsDistKm(g1, g2) : null;
+  if (km == null) return mode === 'car' ? 25 : 30;
+  if (mode === 'walk') return Math.max(5, Math.min(180, Math.round(km * 14)));
+  if (mode === 'car') return Math.max(10, Math.min(240, Math.round(10 + km * 1.6)));
+  return Math.max(10, Math.min(240, Math.round(12 + km * 2.1)));
+}
+function recalcDayLegs(dayIdx) {
+  const d = state.days[dayIdx];
+  if (!d || !d.stops.length) return;
+  const iso = isoOf(dateOfDay(dayIdx));
+  const hs = hotelMorning(iso);
+  let prevGps = hs?.gps || null;
+  d.stops.forEach(s => {
+    const p = placeOf(s.id);
+    if (prevGps && p?.gps) s.leg = estLegMin(prevGps, p.gps, d.mode);
+    if (p?.gps) prevGps = p.gps;
+  });
+}
+function reorderStop(fromIdx, toIdx) {
+  const stops = state.days[ui.day]?.stops;
+  if (!stops || fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= stops.length || toIdx >= stops.length) return;
+  const [moved] = stops.splice(fromIdx, 1);
+  stops.splice(toIdx, 0, moved);
+  recalcDayLegs(ui.day);
+  saveState();
+  if ($('#s-day')) renderDay();
+}
+function moveStop(idx, dir) {
+  reorderStop(idx, idx + dir);
+}
+function moveStopToDay(placeId, targetDayIdx) {
+  const curStops = state.days[ui.day]?.stops || [];
+  const idx = curStops.findIndex(s => s.id === placeId);
+  if (idx >= 0) curStops.splice(idx, 1);
+  const target = state.days[targetDayIdx];
+  if (target && !target.stops.some(s => s.id === placeId)) {
+    target.stops.push({ id: placeId, leg: target.mode === 'car' ? 25 : 30 });
+    recalcDayLegs(targetDayIdx);
+  }
+  recalcDayLegs(ui.day);
+  saveState(); closeSheet(); renderDay();
+  toast(t('moved_to_day', { p: pName(placeOf(placeId)), d: targetDayIdx + 1 }));
+}
+function sortDayByGps(dayIdx = ui.day) {
+  const d = state.days[dayIdx];
+  if (!d || d.stops.length < 2) return;
+  const iso = isoOf(dateOfDay(dayIdx));
+  const hs = hotelMorning(iso);
+  let curGps = hs?.gps || placeOf(d.stops[0].id)?.gps || '';
+  const pool = [...d.stops];
+  const sorted = [];
+  while (pool.length) {
+    let bestIdx = 0, bestDist = Infinity;
+    pool.forEach((s, idx) => {
+      const g = placeOf(s.id)?.gps;
+      const dist = (curGps && g && typeof gpsDistKm === 'function') ? (gpsDistKm(curGps, g) ?? 999) : (idx * 10);
+      if (dist < bestDist) { bestDist = dist; bestIdx = idx; }
+    });
+    const [picked] = pool.splice(bestIdx, 1);
+    sorted.push(picked);
+    if (placeOf(picked.id)?.gps) curGps = placeOf(picked.id).gps;
+  }
+  d.stops = sorted;
+  recalcDayLegs(dayIdx);
+  saveState();
+  if ($('#s-day')) renderDay();
+  toast(t('route_sorted'));
+}
+
+let dragState = null, holdTimer = null;
+function holdStopDrag(ev, idx) {
+  if (ev.target.closest('button.rm, .stop-mv, .drag-handle, a')) return;
+  clearTimeout(holdTimer);
+  const startX = ev.clientX, startY = ev.clientY;
+  const cancelHold = () => { clearTimeout(holdTimer); window.removeEventListener('pointermove', checkMove); window.removeEventListener('pointerup', cancelHold); };
+  const checkMove = e => { if (Math.hypot(e.clientX - startX, e.clientY - startY) > 10) cancelHold(); };
+  window.addEventListener('pointermove', checkMove);
+  window.addEventListener('pointerup', cancelHold);
+  holdTimer = setTimeout(() => { cancelHold(); startStopDrag(ev, idx); }, 320);
+}
+function startStopDrag(ev, idx) {
+  if (state.days[ui.day].stops.length < 2) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const rows = [...document.querySelectorAll('#s-day .stop-item')];
+  const rowEl = rows.find(r => +r.dataset.stopIdx === idx);
+  if (!rowEl) return;
+  rowEl.classList.add('dragging');
+  dragState = { fromIdx: idx, toIdx: idx };
+  const onMove = e => {
+    if (!dragState) return;
+    const y = e.clientY;
+    rows.forEach(r => r.classList.remove('drop-above', 'drop-below'));
+    for (const r of rows) {
+      const rect = r.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) {
+        const overIdx = +r.dataset.stopIdx;
+        dragState.toIdx = overIdx;
+        if (overIdx < dragState.fromIdx) r.classList.add('drop-above');
+        else if (overIdx > dragState.fromIdx) r.classList.add('drop-below');
+        break;
+      }
+    }
+  };
+  const onEnd = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onEnd);
+    window.removeEventListener('pointercancel', onEnd);
+    rows.forEach(r => r.classList.remove('dragging', 'drop-above', 'drop-below'));
+    if (dragState && dragState.fromIdx !== dragState.toIdx) {
+      reorderStop(dragState.fromIdx, dragState.toIdx);
+    }
+    dragState = null;
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onEnd);
+  window.addEventListener('pointercancel', onEnd);
+}
+
 function openAddPlace() {
   const used = new Set(state.days[ui.day].stops.map(s => s.id));
   const list = Object.entries(PLACES).filter(([id]) => !used.has(id));
@@ -324,7 +459,9 @@ function openAddPlace() {
       <div class="grow"><div class="t">${esc(pName(p))}</div><div class="s">${esc(tx(p.area))} · ${durTxt(p.dur)}</div></div>${ic('plus', 'add-ic')}</button>`).join('') || `<p class="muted">${t('all_added')}</p>`}</div>`);
 }
 function addStop(id) {
-  state.days[ui.day].stops.push({ id, leg: state.days[ui.day].mode === 'car' ? 30 : 35 });
+  const d = state.days[ui.day];
+  d.stops.push({ id, leg: d.mode === 'car' ? 30 : 35 });
+  recalcDayLegs(ui.day);
   saveState(); closeSheet(); renderDay();
   const ld = loadOf(ui.day);
   toast(ld.lv === 'packed' ? t('too_packed') : t('added', { p: pName(placeOf(id)) }));
@@ -343,6 +480,7 @@ function openPlace(id) {
   const p = placeOf(id);
   const hi = (p.hi?.[L()]?.length ? p.hi[L()] : p.hi?.th) || [], miss = (p.miss?.[L()]?.length ? p.miss[L()] : p.miss?.th) || [];
   const custom = !!state.customPlaces?.[id];
+  const inToday = ui.screen === 'day' && state.days[ui.day]?.stops.some(s => s.id === id);
   openSheet(`<div class="cover">${ART[p.art] || ART.city}</div>
     <h2 class="sheet-title">${esc(pName(p))}</h2><div class="jpname">${esc(p.name.ja || p.name.th)}${p.ro ? ' · ' + esc(p.ro) : ''}${custom ? ` · <span class="chip c-yuzu mini-chip">${t('my_place')}</span>` : p.src === 'sheet' ? ` · <span class="chip c-matcha mini-chip">Sheet</span>` : ''}</div>
     ${hi.length ? `<h3 class="sec">${t('highlights')}</h3><div class="list">${hi.map(x => `<div class="li"><span class="b c-sora">✓</span>${esc(x)}</div>`).join('')}</div>` : ''}
@@ -351,6 +489,7 @@ function openPlace(id) {
     ${p.gps ? `<div class="gps"><div><div class="small muted">GPS</div><code>${esc(p.gps)}</code></div><button class="mini" onclick="copyTxt('${esc(p.gps)}')">${t('copy')}</button></div>` : ''}
     <div class="gps"><div><div class="small muted">Mapcode</div>${p.mapcode ? `<code>${esc(p.mapcode)}</code>` : `<span class="muted small">${t('mapcode_soon')}</span>`}</div>${p.mapcode ? `<button class="mini" onclick="copyTxt('${esc(p.mapcode)}')">${t('copy')}</button>` : ''}</div>
     ${tx(p.transit) ? `<h3 class="sec">${t('public_transit')}</h3><div class="gps start">${ic('train')}<div class="small">${esc(tx(p.transit))}</div></div>` : ''}
+    ${inToday && state.days.length > 1 ? `<h3 class="sec">${t('move_day')}</h3><div class="cat-pick">${state.days.map((d, k) => k === ui.day ? '' : `<button type="button" class="chip" onclick="moveStopToDay('${id}',${k})">${t('day_n', { n: k + 1 })} · ${dShort(k)}</button>`).join('')}</div>` : ''}
     ${photosBox(id)}
     <div class="actions">
       ${p.gps ? `<a class="btn btn-ink" href="${dirUrl(null, p.gps, state.days[ui.day]?.mode || 'car')}" target="_blank" rel="noopener">${ic('pin')}${t('navigate')}</a>` : ''}
@@ -751,12 +890,34 @@ function delHotel(id) {
 
 /* ============ RESTAURANTS ============ */
 function renderRestaurants() {
-  $('#s-restaurants').innerHTML = topbar(t('rest_eyebrow'), t('rest_title'), `${cloudOn() ? `<button class="pill" onclick="pullSheetData(this)" title="${t('pull_sheet')}">${ic('refresh')}${t('pull_sheet')}</button>` : ''}<button class="pill ink" onclick="openRestaurant()">${ic('plus')}${t('add')}</button>`) + `
+  $('#s-restaurants').innerHTML = topbar(t('rest_eyebrow'), t('rest_title'), `${cloudOn() ? `<button class="pill" onclick="pullSheetData(this)" title="${t('pull_sheet')}">${ic('refresh')}${t('pull_sheet')}</button>` : ''}<button class="pill" onclick="openImportRestSheet()" title="${t('import_sheet')}">📥 ${t('import_sheet')}</button><button class="pill ink" onclick="openRestaurant()">${ic('plus')}${t('add')}</button>`) + `
   <p class="muted small" style="margin:-6px 0 12px">${t('rest_sub')}</p>
   <div class="searchbox">${ic('search')}<input id="restQ" placeholder="${t('rest_search')}" value="${esc(ui.restQ)}" oninput="ui.restQ=this.value;renderRestList()"></div>
   <div class="cats">${[{ k:'all' }, ...MEALS].map(m => `<button class="chip ${ui.restMeal === m.k ? 'on' : ''}" onclick="ui.restMeal='${m.k}';renderRestaurants()">${t('meal_' + m.k)}</button>`).join('')}</div>
   <div id="restList"></div>`;
   renderRestList();
+}
+function openImportRestSheet() {
+  openSheet(`<h2 class="sheet-title">${t('import_rest_title')}</h2>
+    <p class="muted small">${t('import_rest_sub')}</p>
+    <textarea id="impRestTxt" class="input area" style="min-height:150px;margin-top:10px" placeholder="${t('import_rest_ph')}"></textarea>
+    <div class="actions"><button class="btn btn-soft" onclick="closeSheet()">${t('cancel')}</button>
+      <button class="btn btn-ink" onclick="doImportRestSheet()">${t('import_btn')}</button></div>`);
+}
+function doImportRestSheet() {
+  const raw = ($('#impRestTxt')?.value || '').trim();
+  if (!raw) return toast(t('need_rest_name'));
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  const parsed = [];
+  lines.forEach((line, idx) => {
+    const cells = line.includes('\t') ? line.split('\t') : line.split(/\s*\|\s*|\s*,\s*(?![0-9])/);
+    const item = typeof parseSheetRestRow === 'function' ? parseSheetRestRow(cells, idx) : null;
+    if (item && item.name) parsed.push(item);
+  });
+  if (!parsed.length) return toast(t('need_rest_name'));
+  const added = typeof mergeSheetItems === 'function' ? mergeSheetItems(parsed, [], true) : 0;
+  saveState(); closeSheet(); renderRestaurants();
+  toast(t('imported_rest', { n: added || parsed.length }));
 }
 function renderRestList() {
   const all = [...(state.restaurants || [])].sort((a, b) => ((a.day || 99) - (b.day || 99)) || String(a.name).localeCompare(String(b.name)));
@@ -924,7 +1085,7 @@ function renderSOS() {
 /* ============ AI — Gemini ผ่าน Apps Script + ระบบวิเคราะห์โซน เส้นทาง & ร้านอาหารอัจฉริยะ ============ */
 const aiLog = [];
 let aiBusy = false;
-const aiReady = () => cloudOn() && CLOUD.ai;
+const aiReady = () => cloudOn() && (CLOUD.ai || !!CLOUD.aiKey);
 function mdLite(s) {
   return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/^#{1,4}\s*(.+)$/gm, '<b>$1</b>')
@@ -945,81 +1106,236 @@ function gpsDistKm(g1, g2) {
 
 const ZONE_DISCOVERY = {
   shinjuku: {
-    label: { th:'โซนชินจูกุ · ฮาราจูกุ · ชิบูย่า (ตะวันตก)', ja:'新宿・原宿・渋谷エリア' },
+    short: { th:'ชินจูกุ', ja:'新宿' },
+    label: { th:'โซนชินจูกุ · คาบูกิโจ · โอคุโบะ', ja:'新宿・歌舞伎町・新大久保エリア' },
+    center: '35.69092, 139.70025',
     places: [
       { id:'tocho', name:{ th:'จุดชมวิวศาลาว่าการกรุงโตเกียว (ฟรี)', ja:'東京都庁展望室' }, area:{ th:'ชินจูกุ', ja:'新宿' }, dur:50, gps:'35.68960, 139.69170', art:'city', hi:{ th:'ชมวิวโตเกียวมุมสูงฟรี ชั้น 45 วันฟ้าใสเห็นฟูจิ', ja:'地上202mの無料展望室' } },
-      { id:'omotesando', name:{ th:'ถนนทาเคชิตะ & โอโมเตะซันโด', ja:'竹下通り・表参道' }, area:{ th:'ฮาราจูกุ', ja:'原宿' }, dur:75, gps:'35.67020, 139.70270', art:'shop', hi:{ th:'เดินต่อจากศาลเจ้าเมจิได้เลย เครปฮาราจูกุ & คาเฟ่สวย', ja:'明治神宮から徒歩すぐの散策通り' } },
       { id:'gyoen', name:{ th:'สวนชินจูกุเกียวเอ็น', ja:'新宿御苑' }, area:{ th:'ชินจูกุ', ja:'新宿' }, dur:75, gps:'35.68520, 139.71010', art:'park', hi:{ th:'สวนญี่ปุ่นและเรือนกระจกขนาดใหญ่ใจกลางชินจูกุ', ja:'都会のオアシス・日本庭園' } },
+      { id:'kabukicho_tower', name:{ th:'ตึกโทคิว คาบูกิโจ ทาวเวอร์ & หัวก๊อตซิลล่า', ja:'東急歌舞伎町タワー・ゴジラヘッド' }, area:{ th:'ชินจูกุ', ja:'新宿' }, dur:60, gps:'35.69570, 139.70060', art:'city', hi:{ th:'แลนด์มาร์กใหม่ชินจูกุ ฟู้ดฮอลล์ตกแต่งสไตล์นีออนญี่ปุ่น', ja:'歌舞伎町の新ランドマーク' } },
+      { id:'hanazono', name:{ th:'ศาลเจ้าฮานาโซโนะ ชินจูกุ', ja:'花園神社' }, area:{ th:'ชินจูกุ', ja:'新宿' }, dur:40, gps:'35.69350, 139.70520', art:'shrine', hi:{ th:'ศาลเจ้าเก่าแก่คู่ย่านชินจูกุ อยู่ใกล้ห้างอิเซตัน', ja:'新宿の総鎮守' } },
     ],
     restaurants: [
       { name:'ฟูอุนจิ ซึเคเมน (Fuunji)', nameJa:'風雲児', area:'ชินจูกุ', meal:'lunch', gps:'35.68720, 139.69750', note:'ซึเคเมนซุปไก่ผสมปลาแห้งเข้มข้น คิวหมุนไว ใกล้สถานีชินจูกุ' },
       { name:'กิวคัตสึ โมโตมุระ ชินจูกุ', nameJa:'牛かつ もと村 新宿南口店', area:'ชินจูกุ', meal:'dinner', gps:'35.68860, 139.70180', note:'เนื้อวัวชุบเกล็ดขนมปังทอด ย่างบนเตาหินร้อนเองทีละชิ้น' },
       { name:'อุด้ง ชิน (Udon Shin)', nameJa:'うどん慎', area:'ชินจูกุ', meal:'lunch', gps:'35.68680, 139.69680', note:'อุด้งเส้นสดทำมือหนึบหนับ เทมปุระกุ้งและคาโบนาร่าอุด้ง' },
-      { name:'Luke\'s Lobster ฮาราจูกุ', nameJa:'LUKE\'S LOBSTER 表参道キャットストリート店', area:'ฮาราจูกุ', meal:'cafe', gps:'35.66750, 139.70680', note:'ขนมปังล็อบสเตอร์โรลเนื้อแน่น อยู่ในแนวเดินฮาราจูกุ–ชิบูย่า' },
+      { name:'เนื้อย่าง รคคาเซน (Rokkasen)', nameJa:'焼肉 六歌仙', area:'ชินจูกุ', meal:'dinner', gps:'35.69330, 139.69950', note:'บุฟเฟต์และอาลาคาร์ทเนื้อวากิว + ปูทาราบะชื่อดังย่านชินจูกุ' },
+      { name:'ราเมน อิจิรัน ชินจูกุ (Ichiran)', nameJa:'一蘭 新宿中央東口店', area:'ชินจูกุ', meal:'late', gps:'35.69080, 139.70270', note:'ราเมนข้อสอบซุปกระดูกหมูเข้มข้น กินมื้อดึกหลังช้อปปิ้งได้สบาย' },
+      { name:'เทมปุระ สึนาฮาจิ ชินจูกุ (Tsunahachi)', nameJa:'新宿つな八 総本店', area:'ชินจูกุ', meal:'lunch', gps:'35.69120, 139.70420', note:'เทมปุระต้นตำรับเปิดตั้งแต่ปี 1924 ทอดสดใหม่ทุกชิ้น' },
     ],
   },
-  kawagoe: {
-    label: { th:'โซนคาวาโกเอะ · ลิตเติ้ลเอโดะ (ไซตามะ)', ja:'川越・小江戸エリア' },
+  harajuku_shibuya: {
+    short: { th:'ฮาราจูกุ · ชิบูย่า', ja:'原宿・渋谷' },
+    label: { th:'โซนฮาราจูกุ · ชิบูย่า · โอโมเตะซันโด', ja:'原宿・渋谷・表参道エリア' },
+    center: '35.66500, 139.70250',
     places: [
-      { id:'kashiya_yokocho', name:{ th:'ตรอกลูกกวาดโบราณ คาชิยะโยโกโจ', ja:'菓子屋横丁' }, area:{ th:'คาวาโกเอะ', ja:'川越' }, dur:45, gps:'35.92480, 139.48120', art:'shop', hi:{ th:'เดินจากหอระฆังโทคิโนะคาเนะเพียง 3 นาที ขนมโบราณและมันหวาน', ja:'時の鐘から徒歩3分の駄菓子通り' } },
-      { id:'kitain', name:{ th:'วัดคิตะอิน (พระอรหันต์ 500 องค์)', ja:'喜多院' }, area:{ th:'คาวาโกเอะ', ja:'川越' }, dur:60, gps:'35.91820, 139.49060', art:'shrine', hi:{ th:'วัดเก่าแก่สมัยเอโดะ อยู่บนเส้นทางก่อนเข้าย่านโกดังเก่า', ja:'徳川家ゆかりの名刹・五百羅漢' } },
+      { id:'omotesando', name:{ th:'ถนนทาเคชิตะ & โอโมเตะซันโด', ja:'竹下通り・表参道' }, area:{ th:'ฮาราจูกุ', ja:'原宿' }, dur:75, gps:'35.67020, 139.70270', art:'street', hi:{ th:'เดินต่อจากศาลเจ้าเมจิได้เลย เครปฮาราจูกุ & คาเฟ่สวย', ja:'明治神宮から徒歩すぐの散策通り' } },
+      { id:'hachiko_crossing', name:{ th:'ห้าแยกชิบูย่า & รูปปั้นฮาจิโกะ', ja:'渋谷スクランブル交差点・ハチ公像' }, area:{ th:'ชิบูย่า', ja:'渋谷' }, dur:45, gps:'35.65950, 139.70050', art:'city', hi:{ th:'จุดเช็กอินห้าแยกที่คึกคักที่สุดในโลก อยู่หน้าตึก Shibuya Sky', ja:'世界一有名な交差点' } },
+      { id:'miyashita_park', name:{ th:'สวนลอยฟ้า มิยาชิตะพาร์ค (Miyashita Park)', ja:'MIYASHITA PARK' }, area:{ th:'ชิบูย่า', ja:'渋谷' }, dur:60, gps:'35.66210, 139.70180', art:'park', hi:{ th:'สวนดาดฟ้าพร้อมคาเฟ่และ Shibuya Yokocho ศูนย์รวมอาหารทั่วญี่ปุ่น', ja:'屋上公園と渋谷横丁のグルメ街' } },
     ],
     restaurants: [
-      { name:'ข้าวหน้าปลาไหล โอกะคิคุ (Ogakiku)', nameJa:'小川菊', area:'คาวาโกเอะ', meal:'lunch', gps:'35.92120, 139.48310', note:'ร้านปลาไหลย่างถ่านเก่าแก่กว่า 200 ปี อยู่บนถนนสายหลักคาวาโกเอะ (กดรับคิวก่อนเดินเที่ยว)' },
-      { name:'โซบะชาเขียว โคโตบุกิอัน (Kotobukian)', nameJa:'寿庵 蔵の街店', area:'คาวาโกเอะ', meal:'lunch', gps:'35.92340, 139.48280', note:'โซบะชาเขียวเสิร์ฟเรียง 7 ชั้น พร้อมเทมปุระ อยู่ใกล้หอระฆัง' },
-      { name:'มันหวานทอดแผ่นยักษ์ โอซัตสึอัน', nameJa:'小江戸おさつ庵', area:'คาวาโกเอะ', meal:'cafe', gps:'35.92390, 139.48270', note:'ชิปส์มันหวานแผ่นใหญ่จิ้มเนยเค็ม ถือเดินกินถ่ายรูปหน้าร้านโกดังเก่า' },
+      { name:'Luke\'s Lobster ฮาราจูกุ', nameJa:'LUKE\'S LOBSTER 表参道キャットストリート店', area:'ฮาราจูกุ', meal:'cafe', gps:'35.66750, 139.70680', note:'ขนมปังล็อบสเตอร์โรลเนื้อแน่น อยู่ในแนวเดินฮาราจูกุ–ชิบูย่า' },
+      { name:'ราเมนยูซุ อาฟูริ ฮาราจูกุ (AFURI)', nameJa:'AFURI 原宿', area:'ฮาราจูกุ', meal:'lunch', gps:'35.67180, 139.70310', note:'ราเมนซุปใสกลิ่นส้มยูซุหอมสดชื่น หมูชาชูย่างถ่าน อยู่ใกล้ทางเข้าศาลเจ้าเมจิ' },
+      { name:'แฮมเบิร์กย่างถ่าน ฮิคินิคุ โตะ โคเมะ ชิบูย่า', nameJa:'挽肉と米 渋谷', area:'ชิบูย่า', meal:'lunch', gps:'35.65920, 139.69680', note:'แฮมเบิร์กเนื้อบดสดย่างถ่านเสิร์ฟร้อนๆ 3 ชิ้น พร้อมข้าวหุงหม้อดิน' },
+      { name:'ซูชิสายพาน คัตสึมิโดริ ชิบูย่า (Seibu)', nameJa:'回し寿司 活 活美登利 西武渋谷店', area:'ชิบูย่า', meal:'dinner', gps:'35.66060, 139.70060', note:'ซูชิสายพานคุณภาพสูงชิ้นใหญ่ คุ้มราคามาก ชั้น 8 ห้าง Seibu ชิบูย่า' },
+      { name:'เกี๊ยวซ่า ฮาราจูกุ โรคุเม็งโร (Harajuku Gyozaro)', nameJa:'原宿餃子楼', area:'ฮาราจูกุ', meal:'lunch', gps:'35.66690, 139.70610', note:'เกี๊ยวซ่าทอดกรอบและแบบนึ่ง ราคาประหยัด อร่อยถูกปากครอบครัว' },
+      { name:'เครปมาริออน ทาเคชิตะ (Marion Crepes)', nameJa:'マリオンクレープ 原宿竹下通り店', area:'ฮาราจูกุ', meal:'cafe', gps:'35.67120, 139.70370', note:'เครปสตรอว์เบอร์รีครีมสดในตำนานกลางถนนทาเคชิตะ' },
     ],
   },
-  asakusa: {
-    label: { th:'โซนอาซากุสะ · อุเอโนะ · สกายทรี (ตะวันออก)', ja:'浅草・上野・スカイツリーエリア' },
+  asakusa_skytree: {
+    short: { th:'อาซากุสะ · สกายทรี', ja:'浅草・スカイツリー' },
+    label: { th:'โซนอาซากุสะ · สกายทรี · แม่น้ำสุมิดะ', ja:'浅草・スカイツリー・隅田川エリア' },
+    center: '35.71350, 139.79850',
     places: [
-      { id:'skytree', name:{ th:'โตเกียวสกายทรี & โซลามาจิ', ja:'東京スカイツリー・ソラマチ' }, area:{ th:'อาซากุสะ / โอชิอาเกะ', ja:'押上・スカイツリー' }, dur:90, gps:'35.71000, 139.81070', art:'city', hi:{ th:'หอคอยชมวิวและห้างใหญ่รวมของฝากโปเกมอน/คิрби้ ห่างวัดอาซากุสะ 1.5 กม.', ja:'浅草から隅田川を渡ってすぐの展望塔＆商業施設' } },
+      { id:'skytree', name:{ th:'โตเกียวสกายทรี & ห้างโซลามาจิ', ja:'東京スカイツリー・ソラマチ' }, area:{ th:'อาซากุสะ / โอชิอาเกะ', ja:'押上・スカイツリー' }, dur:90, gps:'35.71000, 139.81070', art:'city', hi:{ th:'หอคอยชมวิวและห้างใหญ่รวมของฝากโปเกมอน/คิрби้ ห่างวัดอาซากุสะ 1.5 กม.', ja:'浅草から隅田川を渡ってすぐの展望塔＆商業施設' } },
       { id:'sumida_walk', name:{ th:'ทางเดินริมแม่น้ำสุมิดะ (Sumida River Walk)', ja:'すみだリバーウォーク' }, area:{ th:'อาซากุสะ', ja:'浅草' }, dur:40, gps:'35.71250, 139.80180', art:'park', hi:{ th:'ทางเดินข้ามแม่น้ำเชื่อมวัดอาซากุสะไปสกายทรี ถ่ายรูปสวยมาก', ja:'浅草とスカイツリーを結ぶ歩道橋' } },
+      { id:'kappabashi', name:{ th:'ถนนเครื่องครัว คัปปะบาชิ (Kappabashi)', ja:'かっぱ橋道具街' }, area:{ th:'อาซากุสะ', ja:'浅草' }, dur:50, gps:'35.71430, 139.78890', art:'street', hi:{ th:'แหล่งรวมมีดญี่ปุ่น ถ้วยชามเซรามิก และโมเดลอาหารจำลอง ใกล้วัดอาซากุสะ', ja:'料理道具と食品サンプルの街' } },
     ],
     restaurants: [
       { name:'เทมปุระ ไดโคคุยะ (Daikokuya)', nameJa:'大黒家天麩羅', area:'อาซากุสะ', meal:'lunch', gps:'35.71360, 139.79550', note:'เทมปุระกุ้งยักษ์ทอดน้ำมันงาหอมๆ ราดซอสสูตรโบราณ อยู่ในซอยข้างวัดเซนโซจิ' },
       { name:'สุกี้ยากี้เนื้อวากิว อาซากุสะ อิมาฮัน', nameJa:'浅草今半 国際通り本店', area:'อาซากุสะ', meal:'lunch', gps:'35.71240, 139.79230', note:'สุกี้ยากี้เนื้อวากิวละลายในปาก มีเซ็ตมื้อเที่ยงสุดคุ้ม' },
       { name:'ไอศกรีมมัทฉะ 7 ระดับ ซูซูกิเอ็น', nameJa:'壽々喜園 浅草本店', area:'อาซากุสะ', meal:'cafe', gps:'35.71590, 139.79680', note:'เจลาโต้มัทฉะเข้มข้นที่สุดในโลก 7 ระดับ อยู่ด้านหลังวัดอาซากุสะ' },
-      { name:'ซูชิสายพาน มิอุระมิซากิโกะ อุเอโนะ', nameJa:'グルメ廻転寿司 三浦三崎港 上野店', area:'อุเอโนะ', meal:'dinner', gps:'35.71090, 139.77460', note:'ซูชิสายพานหน้าล้น ปลาทูน่าส่งตรงจากท่าเรือมิซากิ อยู่ในตลาดอาเมโยโกะ' },
+      { name:'เมล่อนปัง คาเก็ตสึโด อาซากุสะ', nameJa:'浅草花月堂 本店', area:'อาซากุสะ', meal:'cafe', gps:'35.71510, 139.79520', note:'เมล่อนปังอบร้อนกรอบนอกนุ่มในชิ้นใหญ่ ข้างวัดเซนโซจิ' },
+      { name:'ข้าวหน้าปลาไหล อิโรฮาวะ อาซากุสะ (Unatoto)', nameJa:'名代 宇奈とと 浅草店', area:'อาซากุสะ', meal:'dinner', gps:'35.71160, 139.79810', note:'ข้าวหน้าปลาไหลย่างถ่านหอมๆ ราคาย่อมเยา ใกล้สถานีอาซากุสะ' },
+      { name:'หมูทอดทงคัตสึ ยูทากะ อาซากุสะ', nameJa:'とんかつ ゆたか', area:'อาซากุสะ', meal:'dinner', gps:'35.71280, 139.79460', note:'ทงคัตสึเก่าแก่กว่า 70 ปี แป้งบางกรอบไม่อมน้ำมัน' },
+    ],
+  },
+  ueno_akihabara: {
+    short: { th:'อุเอโนะ · อากิฮาบาระ', ja:'上野・秋葉原' },
+    label: { th:'โซนอุเอโนะ · อาเมโยโกะ · อากิฮาบาระ', ja:'上野・アメ横・秋葉原エリア' },
+    center: '35.70850, 139.77420',
+    places: [
+      { id:'akihabara', name:{ th:'ย่านเครื่องใช้ไฟฟ้า & อนิเมะ อากิฮาบาระ', ja:'秋葉原電気街' }, area:{ th:'อากิฮาบาระ', ja:'秋葉原' }, dur:90, gps:'35.69835, 139.77310', art:'city', hi:{ th:'ห่างตลาดอาเมโยโกะเพียง 1 สถานี แหล่งรวมฟิกเกอร์ กาชาปอง และห้าง Yodobashi 9 ชั้น', ja:'家電・アニメ・ガチャの聖地' } },
+      { id:'ueno_zoo', name:{ th:'สวนสัตว์อุเอโนะ (Ueno Zoo)', ja:'恩賜上野動物園' }, area:{ th:'อุเอโนะ', ja:'上野' }, dur:120, gps:'35.71645, 139.77130', art:'park', hi:{ th:'อยู่ในสวนอุเอโนะ มีแพนด้า หมีขั้วโลก และสัตว์นานาชนิด เหมาะกับครอบครัว', ja:'上野公園内の人気動物園' } },
+      { id:'yanaka_ginza', name:{ th:'ย่านเมืองเก่า ยานากะกินซ่า (หมู่บ้านแมว)', ja:'谷中銀座商店街' }, area:{ th:'อุเอโนะ / นิปโปริ', ja:'谷中・日暮里' }, dur:60, gps:'35.72770, 139.76570', art:'street', hi:{ th:'ถนนคนเดินบรรยากาศโตเกียวยุคโชวะ ขนมรูปแมวและของกินเล่นเพียบ', ja:'下町情緒あふれる猫の街' } },
+    ],
+    restaurants: [
+      { name:'ซูชิสายพาน มิอุระมิซากิโกะ อุเอโนะ', nameJa:'グルメ廻転寿司 三浦三崎港 上野店', area:'อุเอโนะ', meal:'lunch', gps:'35.71090, 139.77460', note:'ซูชิสายพานหน้าล้น ปลาทูน่าส่งตรงจากท่าเรือมิซากิ อยู่ในตลาดอาเมโยโกะ' },
+      { name:'ทงคัตสึ ยามาเบะ อุเอโนะ (Yamabe)', nameJa:'とんかつ山家 御徒町店', area:'อุเอโนะ', meal:'lunch', gps:'35.70820, 139.77480', note:'หมูทอดทงคัตสึชิ้นหนาฉ่ำ คุ้มค่าที่สุดในย่านอาเมโยโกะ' },
+      { name:'เนื้อย่าง โตเกียว เอ็น อุเอโนะ (Yakiniku)', nameJa:'焼肉 陽山道 上野本店', area:'อุเอโนะ', meal:'dinner', gps:'35.70980, 139.77550', note:'เนื้อวากิวคัดเกรดย่านอุเอโนะ มีเซ็ตอาหารกลางวันและมื้อเย็นสำหรับครอบครัว' },
+      { name:'ราเมนเป็ด คาโมะ โตะ เนกิ อุเอโนะ', nameJa:'らーめん 鴨to葱 上野御徒町本店', area:'อุเอโนะ', meal:'dinner', gps:'35.70960, 139.77530', note:'ราเมนซุปเป็ดเคี่ยวกับต้นหอมญี่ปุ่น หวานหอมกลมกล่อมใต้รางรถไฟอาเมโยโกะ' },
+      { name:'กิวคัตสึ อิจินิซัง อากิฮาบาระ', nameJa:'牛かつ 壱弐参', area:'อากิฮาบาระ', meal:'lunch', gps:'35.70050, 139.77120', note:'เนื้อชุบแป้งทอดกิวคัตสึเจ้าดังที่สุดในอากิฮาบาระ' },
+    ],
+  },
+  ginza_tsukiji: {
+    short: { th:'กินซ่า · ซึกิจิ · โตเกียว', ja:'銀座・築地・東京駅' },
+    label: { th:'โซนกินซ่า · ซึกิจิ · สถานีโตเกียว', ja:'銀座・築地・東京駅エリア' },
+    center: '35.67200, 139.76650',
+    places: [
+      { id:'tokyo_char_st', name:{ th:'ถนนตัวการ์ตูน สถานีโตเกียว (Character Street)', ja:'東京キャラクターストリート' }, area:{ th:'สถานีโตเกียว', ja:'東京駅' }, dur:60, gps:'35.68120, 139.76790', art:'shop', hi:{ th:'รวมร้านของฝาก Sanrio, Pokemon, Ghibli, Doraemon และ Tokyo Ramen Street ในที่เดียว', ja:'人気キャラクターショップ＆東京ラーメンストリート' } },
+      { id:'art_aquarium', name:{ th:'พิพิธภัณฑ์ปลาทอง อาร์ต อควาเรียม กินซ่า', ja:'アートアクアリウム美術館 GINZA' }, area:{ th:'กินซ่า', ja:'銀座' }, dur:60, gps:'35.67130, 139.76550', art:'city', hi:{ th:'อยู่บนชั้น 8 ห้าง Mitsukoshi กินซ่า จัดไฟแสงสีกับตู้ปลาทองสุดอลังการ', ja:'銀座三越内の幻想的な金魚アート美術館' } },
+    ],
+    restaurants: [
+      { name:'ซูชิซันไม สาขาหลักซึกิจิ (Sushizanmai)', nameJa:'すしざんまい 本店', area:'ซึกิจิ', meal:'breakfast', gps:'35.66550, 139.77060', note:'ซูชิสดใหม่ใจกลางตลาดปลาซึกิจิ มีเมนูภาษาอังกฤษและภาพชัดเจน' },
+      { name:'ไข่ม้วนญี่ปุ่น มารุทาเกะ ซึกิจิ', nameJa:'つきじ丸武', area:'ซึกิจิ', meal:'breakfast', gps:'35.66580, 139.77090', note:'ไข่ม้วนหวานนุ่มทำสดใหม่ร้อนๆ เสียบไม้เดินกินในตลาดซึกิจิ' },
+      { name:'ราเมนซุปไก่ปั่น กินซ่า คางาริ (Ginza Kagari)', nameJa:'銀座 篝 本店', area:'กินซ่า', meal:'lunch', gps:'35.67120, 139.76190', note:'ราเมนซุปไก่ครีมมี่หอมทรัฟเฟิล ระดับมิชลิน บิบ กูร์มองด์ ย่านกินซ่า' },
+      { name:'ซูชิสายพาน เนมุโระ ฮานามารุ (KITTE)', nameJa:'根室花まる KITTE丸の内店', area:'สถานีโตเกียว', meal:'dinner', gps:'35.67970, 139.76490', note:'ซูชิสายพานเกรดพรีเมียมจากฮอกไกโด บนตึก KITTE หน้าสถานีโตเกียว' },
+      { name:'ราเมน โรคุรินฉะ (Tokyo Ramen Street)', nameJa:'六厘舎 東京駅', area:'สถานีโตเกียว', meal:'lunch', gps:'35.68080, 139.76780', note:'ซึเคเมนเจ้าดังที่สุดในสถานีโตเกียว มีมื้อเช้าตั้งแต่ 07:30 น.' },
+      { name:'แพนเค้กคาเฟ่ บิลส์ กินซ่า (bills Ginza)', nameJa:'bills 銀座', area:'กินซ่า', meal:'cafe', gps:'35.67310, 139.76710', note:'แพนเค้กริคอตต้านุ่มฟูและวิวถนนกินซ่าจากชั้น 12' },
+    ],
+  },
+  odaiba_toyosu: {
+    short: { th:'โอไดบะ · โทโยสุ', ja:'お台場・豊洲' },
+    label: { th:'โซนโอไดบะ · โทโยสุ · ทีมแล็บ', ja:'お台場・豊洲・湾岸エリア' },
+    center: '35.63800, 139.78200',
+    places: [
+      { id:'teamlab_planets', name:{ th:'teamLab Planets TOKYO (โทโยสุ)', ja:'チームラボプラネッツ TOKYO' }, area:{ th:'โทโยสุ', ja:'豊洲' }, dur:120, gps:'35.64910, 139.78980', art:'city', hi:{ th:'พิพิธภัณฑ์ศิลปะดิจิทัลเดินลุยน้ำและสวนกล้วยไม้ลอยฟ้า (เหมาะมากวันฝนตก)', ja:'豊洲の没入型ミュージアム（雨の日にも最適）' } },
+      { id:'odaiba', name:{ th:'โอไดบะ กั้นดั้มยักษ์ & วิวสะพานเรนโบว์', ja:'お台場・ダイバーシティ東京' }, area:{ th:'โอไดบะ', ja:'お台場' }, dur:90, gps:'35.62510, 139.77560', art:'city', hi:{ th:'หุ่นยนต์ Unicorn Gundam ขนาดเท่าของจริง เทพีเสรีภาพจำลอง และห้างริมอ่าว', ja:'実物大ユニコーンガンダム＆レインボーブリッジの絶景' } },
+      { id:'senkyaku_banrai', name:{ th:'ตลาดโบราณ เซ็นคยากุ บันไร โทโยสุ', ja:'豊洲 千客万来' }, area:{ th:'โทโยสุ', ja:'豊洲' }, dur:75, gps:'35.64580, 139.78440', art:'street', hi:{ th:'แลนด์มาร์กใหม่ข้างตลาดปลาโทโยสุ จำลองเมืองเอโดะ มีบ่อแช่เท้าออนเซ็นชมวิวอ่าวฟรี', ja:'江戸の街並み再現＆無料足湯スポット' } },
+    ],
+    restaurants: [
+      { name:'ไดวะ ซูชิ ตลาดปลาโทโยสุ (Daiwa Sushi)', nameJa:'大和寿司 豊洲市場', area:'โทโยสุ', meal:'breakfast', gps:'35.64450, 139.78320', note:'โอมากาเสะซูชิสดจากตลาดประมูลปลาโทโยสุ' },
+      { name:'คุชิคัตสึ และซีฟู้ดย่าง เซ็นคยากุ บันไร', nameJa:'豊洲目抜き大通り グルメ', area:'โทโยสุ', meal:'lunch', gps:'35.64580, 139.78440', note:'หอยเชลล์ย่าง ไข่หอยเม่น และเนื้อวากิวเสียบไม้ในตลาดเซ็นคยากุบันไร' },
+      { name:'Bills Odaiba คาเฟ่วิวสะพานเรนโบว์', nameJa:'bills お台場', area:'โอไดบะ', meal:'cafe', gps:'35.62880, 139.77580', note:'นั่งทานแพนเค้กและอาหารเช้าริมหน้าต่างมองเห็นอ่าวโตเกียว' },
+      { name:'Tanaka Soba ในห้าง DiverCity โอไดบะ', nameJa:'田中そば店 ダイバーシティ東京プラザ店', area:'โอไดบะ', meal:'dinner', gps:'35.62510, 139.77560', note:'ราเมนซุปหมูใสหอมกลมกล่อมในโซนฟู้ดคอร์ทชั้น 2 ใกล้กั้นดั้มยักษ์' },
+    ],
+  },
+  roppongi_tower: {
+    short: { th:'โตเกียวทาวเวอร์ · รปปงหงิ', ja:'東京タワー・六本木' },
+    label: { th:'โซนโตเกียวทาวเวอร์ · รปปงหงิ · อาซาบุได', ja:'東京タワー・六本木・麻布台エリア' },
+    center: '35.65950, 139.74200',
+    places: [
+      { id:'tokyo_tower', name:{ th:'โตเกียวทาวเวอร์ & สวนชิบะ', ja:'東京タワー・芝公園' }, area:{ th:'มินาโตะ / รปปงหงิ', ja:'芝公園・東京タワー' }, dur:75, gps:'35.65858, 139.74543', art:'city', hi:{ th:'หอคอยสีส้มขาวสัญลักษณ์โตเกียว มุมถ่ายรูปสวยจากสวนชิบะและวัดโซโจจิ', ja:'東京のシンボルタワー＆芝公園の絶景フォトスポット' } },
+      { id:'azabudai_hills', name:{ th:'อาซาบุได ฮิลส์ & teamLab Borderless', ja:'麻布台ヒルズ・チームラボボーダレス' }, area:{ th:'รปปงหงิ / อาซาบุได', ja:'麻布台・六本木' }, dur:120, gps:'35.66060, 139.74040', art:'city', hi:{ th:'โครงการใหม่ล่าสุดใกล้โตเกียวทาวเวอร์ มีพิพิธภัณฑ์ teamLab Borderless โฉมใหม่', ja:'東京タワー近くの最新複合施設＆チームラボボーダレス' } },
+    ],
+    restaurants: [
+      { name:'เต้าหู้โบราณ โตเกียว ชิบะ โทฟุยะ อุกัย', nameJa:'東京 芝 とうふ屋うかい', area:'โตเกียวทาวเวอร์', meal:'lunch', gps:'35.65660, 139.74450', note:'ร้านอาหารญี่ปุ่นในสวนสวยตีนโตเกียวทาวเวอร์ บรรยากาศหรูหรา' },
+      { name:'อูด้งสึรุทอนทัน รปปงหงิ (Tsurutontan)', nameJa:'つるとんたん 六本木店', area:'รปปงหงิ', meal:'dinner', gps:'35.66340, 139.73450', note:'อุด้งชามยักษ์มีให้เลือกกว่า 30 หน้า ทั้งครีมเมนไทโกะและแกงกะหรี่' },
+      { name:'เนื้อย่าง คินตัน รปปงหงิ (KINTAN)', nameJa:'六本木焼肉 KINTAN', area:'รปปงหงิ', meal:'dinner', gps:'35.66370, 139.73240', note:'ลิ้นวัวย่างและเนื้อวากิวพรีเมียม มีเซ็ตมื้อกลางวันคุ้มราคา' },
+    ],
+  },
+  kawagoe: {
+    short: { th:'คาวาโกเอะ', ja:'川越' },
+    label: { th:'โซนคาวาโกเอะ · ลิตเติ้ลเอโดะ (ไซตามะ)', ja:'川越・小江戸エリア' },
+    center: '35.92340, 139.48300',
+    places: [
+      { id:'kashiya_yokocho', name:{ th:'ตรอกลูกกวาดโบราณ คาชิยะโยโกโจ', ja:'菓子屋横丁' }, area:{ th:'คาวาโกเอะ', ja:'川越' }, dur:45, gps:'35.92480, 139.48120', art:'street', hi:{ th:'เดินจากหอระฆังโทคิโนะคาเนะเพียง 3 นาที ขนมโบราณและมันหวาน', ja:'時の鐘から徒歩3分の駄菓子通り' } },
+      { id:'kitain', name:{ th:'วัดคิตะอิน (พระอรหันต์ 500 องค์)', ja:'喜多院' }, area:{ th:'คาวาโกเอะ', ja:'川越' }, dur:60, gps:'35.91820, 139.49060', art:'temple', hi:{ th:'วัดเก่าแก่สมัยเอโดะ อยู่บนเส้นทางก่อนเข้าย่านโกดังเก่า', ja:'徳川家ゆかりの名刹・五百羅漢' } },
+      { id:'starbucks_kawagoe', name:{ th:'สตาร์บัคส์เรือนไม้โบราณ & หอระฆังโทคิโนะคาเนะ', ja:'スターバックス 川越鐘つき通り店・時の鐘' }, area:{ th:'คาวาโกเอะ', ja:'川越' }, dur:40, gps:'35.92350, 139.48340', art:'street', hi:{ th:'สตาร์บัคส์สไตล์บ้านไม้ญี่ปุ่นพร้อมสวนด้านใน ติดกับหอระฆังไม้โบราณ', ja:'蔵造りの街並みに溶け込む和風スタバと時の鐘' } },
+    ],
+    restaurants: [
+      { name:'ข้าวหน้าปลาไหล โอกะคิคุ (Ogakiku)', nameJa:'小川菊', area:'คาวาโกเอะ', meal:'lunch', gps:'35.92120, 139.48310', note:'ร้านปลาไหลย่างถ่านเก่าแก่กว่า 200 ปี อยู่บนถนนสายหลักคาวาโกเอะ (กดรับคิวก่อนเดินเที่ยว)' },
+      { name:'ข้าวหน้าปลาไหล อิจิโนะยะ (Ichinoya)', nameJa:'いちのや 川越本店', area:'คาวาโกเอะ', meal:'lunch', gps:'35.91780, 139.48410', note:'ร้านปลาไหลชื่อดังเก่าแก่ตั้งแต่ปี 1832 มีที่นั่งกว้างขวางเหมาะกับครอบครัว' },
+      { name:'โซบะชาเขียว โคโตบุกิอัน (Kotobukian)', nameJa:'寿庵 蔵の街店', area:'คาวาโกเอะ', meal:'lunch', gps:'35.92340, 139.48280', note:'โซบะชาเขียวเสิร์ฟเรียง 7 ชั้น พร้อมเทมปุระ อยู่ใกล้หอระฆัง' },
+      { name:'มันหวานทอดแผ่นยักษ์ โอซัตสึอัน', nameJa:'小江戸おさつ庵', area:'คาวาโกเอะ', meal:'cafe', gps:'35.92390, 139.48270', note:'ชิปส์มันหวานแผ่นใหญ่จิ้มเนยเค็ม ถือเดินกินถ่ายรูปหน้าร้านโกดังเก่า' },
+      { name:'ข้าวหน้าเนื้อวากิว ข้าวหุงหม้อดิน โคเอโดะ โอฮานะ', nameJa:'小江戸オハナ', area:'คาวาโกเอะ', meal:'lunch', gps:'35.92090, 139.48340', note:'ทามาโกะยากิไข่ม้วนเนื้อนุ่มและข้าวหน้าปลาไหล/เนื้อวากิว' },
     ],
   },
   fuji: {
-    label: { th:'โซนภูเขาไฟฟูจิ · คาวากุจิโกะ · โอชิโนะ', ja:'富士山・河口湖・忍野エリア' },
+    short: { th:'ฟูจิ · คาวากุจิโกะ', ja:'富士山・河口湖' },
+    label: { th:'โซนภูเขาไฟฟูจิ · คาวากุจิโกะ · โอชิโนะ · โกเทมบะ', ja:'富士山・河口湖・忍野・御殿場エリア' },
+    center: '35.50000, 138.76500',
     places: [
       { id:'fuji_ropeway', name:{ th:'กระเช้าคาจิคาจิ ชมวิวฟูจิ & ทะเลสาบ', ja:'富士山パノラマロープウェイ' }, area:{ th:'คาวากุจิโกะ', ja:'河口湖' }, dur:60, gps:'35.50420, 138.77240', art:'fuji', hi:{ th:'อยู่บนเส้นทางระหว่างเจดีย์ชูเรโตะไปสวนโออิชิ ขึ้นชมวิวทะเลสาบมุมสูง', ja:'河口湖と富士山を一望できるロープウェイ' } },
-      { id:'yamanakako', name:{ th:'ทะเลสาบยามานากะ & จุดชมวิวพาโนรามาได', ja:'山中湖パノラマ台' }, area:{ th:'ยามานากะโกะ', ja:'山中湖' }, dur:60, gps:'35.41280, 138.90610', art:'fuji', hi:{ th:'ขับรถต่อจากหมู่บ้านน้ำใสโอชิโนะฮัคไคเพียง 15 นาที วิวฟูจิใหญ่เต็มตา', ja:'忍野八海から車で15分の絶景展望台' } },
+      { id:'yamanakako', name:{ th:'ทะเลสาบยามานากะ & จุดชมวิวพาโนรามาได', ja:'山中湖パノラマ台' }, area:{ th:'ยามานากะโกะ', ja:'山中湖' }, dur:60, gps:'35.41280, 138.90610', art:'lake', hi:{ th:'ขับรถต่อจากหมู่บ้านน้ำใสโอชิโนะฮัคไคเพียง 15 นาที วิวฟูจิใหญ่เต็มตาและให้อาหารหงส์', ja:'忍野八海から車で15分の絶景展望台＆白鳥の湖' } },
+      { id:'saiko_iyashi', name:{ th:'หมู่บ้านโบราณไซโกะ อิยาชิโนะซาโตะ', ja:'西湖いやしの里根場' }, area:{ th:'ทะเลสาบไซโกะ / ฟูจิ', ja:'西湖・河口湖' }, dur:75, gps:'35.50150, 138.65940', art:'fuji', hi:{ th:'หมู่บ้านหลังคามุงแฝกโบราณที่มีฉากหลังเป็นภูเขาไฟฟูจิ เช่าชุดกิโมโน/ซามูไรถ่ายรูปได้', ja:'茅葺き屋根の集落と富士山の絶景' } },
+      { id:'gotemba', name:{ th:'โกเทมบะ พรีเมียม เอาท์เล็ท', ja:'御殿場プレミアム・アウトレット' }, area:{ th:'โกเทมบะ / ฟูจิ', ja:'御殿場' }, dur:150, gps:'35.30710, 138.96610', art:'fuji', hi:{ th:'เอาท์เล็ทที่ใหญ่ที่สุดในญี่ปุ่นพร้อมวิวฟูจิ แวะระหว่างขับรถกลับโตเกียวได้พอดี', ja:'富士山を望む日本最大級のアウトレット' } },
     ],
     restaurants: [
       { name:'โฮโตฟูโด อุด้งหม้อไฟฟักทอง (ตึกก้อนเมฆ)', nameJa:'ほうとう不動 東恋路店', area:'คาวากุจิโกะ', meal:'lunch', gps:'35.49010, 138.76110', note:'อุด้งเส้นแบนต้มในซุปมิโซะฟักทองร้อนๆ อาคารดีไซน์ก้อนเมฆ มีที่จอดรถกว้าง' },
       { name:'โฮโต โคซากุ (Kosaku Hoto)', nameJa:'甲州ほうとう小作 河口湖店', area:'คาวากุจิโกะ', meal:'dinner', gps:'35.49560, 138.76290', note:'โฮโตต้นตำรับยามานาชิ มีทั้งหมู ไก่ เป็ด และเทมปุระ เหมาะกับครอบครัว' },
       { name:'Lake Bake คาเฟ่ขนมปังริมทะเลสาบวิวฟูจิ', nameJa:'レイクベイク (Lake Bake)', area:'โออิชิ / คาวากุจิโกะ', meal:'cafe', gps:'35.52360, 138.74780', note:'ติดกับสวนโออิชิ ขนมปังอบสดใหม่ นั่งจิบกาแฟมองฟูจิริมทะเลสาบ' },
       { name:'เทมปุระ & โซบะ นินจา โอชิโนะฮัคไค', nameJa:'天ぷら忍者', area:'โอชิโนะฮัคไค', meal:'lunch', gps:'35.46080, 138.83150', note:'โซบะน้ำแร่ฟูจิและเทมปุระกรอบๆ อยู่หน้าทางเข้าหมู่บ้านน้ำใส' },
+      { name:'เนื้อย่าง อามิยากิเท คาวากุจิโกะ', nameJa:'あみやき亭 河口湖店', area:'คาวากุจิโกะ', meal:'dinner', gps:'35.49080, 138.75540', note:'ร้านเนื้อย่างสำหรับครอบครัว มีที่จอดรถใหญ่ สั่งผ่านแท็บเล็ตง่าย' },
+      { name:'Fuji Tempura Idaten (เทมปุระฟูจิ)', nameJa:'冨士天ぷら いだ天', area:'คาวากุจิโกะ', meal:'lunch', gps:'35.49810, 138.76680', note:'ข้าวหน้าเทมปุระกุ้งและเทมปุระรูปภูเขาไฟฟูจิ ใกล้สถานีคาวากุจิโกะ' },
+      { name:'แฮมเบิร์กซาวายากะ โกเทมบะ (Sawayaka)', nameJa:'炭焼きレストランさわやか 御殿場インター店', area:'โกเทมบะ / ฟูจิ', meal:'dinner', gps:'35.29740, 138.94450', note:'แฮมเบิร์กเนื้อบดย่างถ่านอันดับ 1 ของชิซึโอกะ แวะตอนไปโกเทมบะ' },
     ],
   },
-  central: {
-    label: { th:'โซนกินซ่า · ซึกิจิ · สถานีโตเกียว · โอไดบะ', ja:'銀座・築地・東京駅・お台場エリア' },
+  kamakura_yokohama: {
+    short: { th:'คามาคุระ · โยโกฮาม่า', ja:'鎌倉・横浜' },
+    label: { th:'โซนคามาคุระ · เอโนะชิมะ · โยโกฮาม่า', ja:'鎌倉・江ノ島・横浜エリア' },
+    center: '35.31920, 139.54670',
     places: [
-      { id:'teamlab_planets', name:{ th:'teamLab Planets TOKYO (โทโยสุ)', ja:'チームラボプラネッツ TOKYO' }, area:{ th:'โทโยสุ / กินซ่า', ja:'豊洲' }, dur:120, gps:'35.64910, 139.78980', art:'museum', hi:{ th:'พิพิธภัณฑ์ศิลปะดิจิทัลเดินลุยน้ำ อยู่ถัดจากซึกิจิและกินซ่าแค่ 10 นาที (เหมาะมากวันฝนตก)', ja:'築地・銀座からすぐの没入型ミュージアム（雨の日にも最適）' } },
-      { id:'odaiba', name:{ th:'โอไดบะ กั้นดั้มยักษ์ & วิวสะพานเรนโบว์', ja:'お台場・ダイバーシティ東京' }, area:{ th:'โอไดบะ', ja:'お台場' }, dur:90, gps:'35.62510, 139.77560', art:'city', hi:{ th:'ต่อเนื่องจากสายซึกิจิ–โทโยสุ เดินห้างและชมวิวอ่าวโตเกียว', ja:'湾岸エリアの大型ショッピング＆観光スポット' } },
+      { id:'daibutsu', name:{ th:'พระใหญ่คามาคุระ (วัดโคโตคุอิน)', ja:'鎌倉大仏（高徳院）' }, area:{ th:'คามาคุระ', ja:'鎌倉' }, dur:50, gps:'35.31670, 139.53570', art:'temple', hi:{ th:'องค์พระพุทธรูปสำริดกลางแจ้งขนาดใหญ่คู่เมืองคามาคุระ', ja:'鎌倉の象徴・国宝銅造阿弥陀如来坐像' } },
+      { id:'komachi_dori', name:{ th:'ถนนคนเดิน โคมาจิโดริ คามาคุระ', ja:'小町通り' }, area:{ th:'คามาคุระ', ja:'鎌倉' }, dur:75, gps:'35.32120, 139.55220', art:'street', hi:{ th:'ถนนสายของกินเล่น ไอศกรีมมัทฉะ ข้าวหน้าปลาชิราสึ และของฝากหน้าสถานีคามาคุระ', ja:'鎌倉駅前の食べ歩き＆お土産ストリート' } },
+      { id:'yokohama_chinatown', name:{ th:'ไชน่าทาวน์โยโกฮาม่า & อ่าวและโกดังอิฐแดง', ja:'横浜中華街・赤レンガ倉庫' }, area:{ th:'โยโกฮาม่า', ja:'横浜' }, dur:120, gps:'35.44370, 139.64550', art:'city', hi:{ th:'ไชน่าทาวน์ที่ใหญ่ที่สุดในญี่ปุ่นและเดินเล่นริมอ่าวโยโกฮาม่า', ja:'日本最大の中華街とみなとみらいの海辺散策' } },
     ],
     restaurants: [
-      { name:'ซูชิซันไม สาขาหลักซึกิจิ (Sushizanmai)', nameJa:'すしざんまい 本店', area:'ซึกิจิ', meal:'breakfast', gps:'35.66550, 139.77060', note:'ซูชิสดใหม่ใจกลางตลาดปลาซึกิจิ มีเมนูภาษาอังกฤษและภาพชัดเจน' },
-      { name:'ราเมนซุปไก่ปั่น กินซ่า คางาริ (Ginza Kagari)', nameJa:'銀座 篝 本店', area:'กินซ่า', meal:'lunch', gps:'35.67120, 139.76190', note:'ราเมนซุปไก่ครีมมี่หอมทรัฟเฟิล ระดับมิชลิน บิบ กูร์มองด์ ย่านกินซ่า' },
-      { name:'ซูชิสายพาน เนมุโระ ฮานามารุ (KITTE)', nameJa:'根室花まる KITTE丸の内店', area:'สถานีโตเกียว', meal:'dinner', gps:'35.67970, 139.76490', note:'ซูชิสายพานเกรดพรีเมียมจากฮอกไกโด บนตึก KITTE หน้าสถานีโตเกียว' },
+      { name:'ข้าวหน้าปลาชิราสึ อากิโมโตะ คามาคุระ', nameJa:'秋本 鎌倉', area:'คามาคุระ', meal:'lunch', gps:'35.31930, 139.55080', note:'ข้าวหน้าปลาเงินชิราสึสดและเทมปุระผักคามาคุระ หน้าสถานีคามาคุระ' },
+      { name:'เนื้อวากิวสับทอด โคโรเกะ คามาคุระ', nameJa:'鎌倉メンチカツ', area:'คามาคุระ', meal:'cafe', gps:'35.32080, 139.55200', note:'เมนจิคัตสึเนื้อฉ่ำทอดร้อนๆ บนถนนโคมาจิโดริ' },
+      { name:'เสี่ยวหลงเปาผัดทอด เป็งเจินโหลว โยโกฮาม่า', nameJa:'鵬天閣 新館 横浜中華街', area:'โยโกฮาม่า', meal:'dinner', gps:'35.44320, 139.64620', note:'เสี่ยวหลงเปาทอดกรอบด้านล่าง น้ำซุปทะลัก ใจกลางไชน่าทาวน์โยโกฮาม่า' },
     ],
   },
 };
 
+function matchZoneKey(text = '', gps = '') {
+  const s = String(text || '').toLowerCase();
+  if (/ฟูจิ|คาวากุจิ|โอชิโนะ|ยามานากะ|ไซโกะ|โกเทมบะ|ชูเรโตะ|โออิชิ|fuji|kawaguchi|oshino|yamanaka|gotemba|chureito|oishi|富士山|河口湖|忍野|山中湖|御殿場/.test(s)) return 'fuji';
+  if (/คาวาโกเอะ|ไซตามะ|ฮิคาวะ|เอโดะ|kawagoe|saitama|hikawa|川越|氷川/.test(s)) return 'kawagoe';
+  if (/คามาคุระ|เอโนะชิมะ|โยโกฮาม่า|kamakura|enoshima|yokohama|鎌倉|江ノ島|横浜/.test(s)) return 'kamakura_yokohama';
+  if (/โอไดบะ|โทโยสุ|ทีมแล็บ|odaiba|toyosu|teamlab|お台場|豊洲|チームラボ/.test(s)) return 'odaiba_toyosu';
+  if (/โตเกียวทาวเวอร์|รปปงหงิ|อาซาบุ|ชิบะ|roppongi|azabu|tokyo tower|東京タワー|六本木|麻布/.test(s)) return 'roppongi_tower';
+  if (/อุเอโนะ|อาเมโยโกะ|อากิฮาบาระ|ยานากะ|ueno|ameyoko|akihabara|yanaka|上野|アメ横|秋葉原|谷中/.test(s)) return 'ueno_akihabara';
+  if (/อาซากุสะ|เซนโซจิ|สกายทรี|สุมิดะ|โอชิอาเกะ|asakusa|sensoji|skytree|sumida|浅草|スカイツリー|隅田/.test(s)) return 'asakusa_skytree';
+  if (/กินซ่า|ซึกิจิ|พระราชวัง|สถานีโตเกียว|มารุโนะอุจิ|ginza|tsukiji|imperial|marunouchi|銀座|築地|皇居|東京駅/.test(s)) return 'ginza_tsukiji';
+  if (/ฮาราจูกุ|ชิบูย่า|เมจิ|โอโมเตะซันโด|ทาเคชิตะ|harajuku|shibuya|meiji|omotesando|原宿|渋谷|明治神宮|表参道/.test(s)) return 'harajuku_shibuya';
+  if (/ชินจูกุ|คาบูกิโจ|โอคุโบะ|shinjuku|kabukicho|omoide|新宿|歌舞伎町/.test(s)) return 'shinjuku';
+  if (gps) {
+    let bestKey = 'shinjuku', bestDist = Infinity;
+    for (const [k, z] of Object.entries(ZONE_DISCOVERY)) {
+      const d = gpsDistKm(gps, z.center);
+      if (d !== null && d < bestDist) { bestDist = d; bestKey = k; }
+    }
+    return bestKey;
+  }
+  return null;
+}
+
 function detectDayZone(dayIdx) {
   const d = state.days[dayIdx];
   if (!d) return 'shinjuku';
-  const ids = d.stops.map(s => s.id);
-  const txt = [tx(d.title), ...ids, ...d.stops.map(s => PLACES[s.id] ? tx(PLACES[s.id].area) + ' ' + pName(PLACES[s.id]) : '')].join(' ').toLowerCase();
-  if (ids.some(x => ['chureito', 'oishi', 'oshino', 'fuji_ropeway', 'yamanakako'].includes(x)) || /ฟูจิ|คาวากุจิ|โอชิโนะ|fuji|kawaguchiko|富士山|河口湖/.test(txt)) return 'fuji';
-  if (ids.some(x => ['kawagoe', 'hikawa', 'kashiya_yokocho', 'kitain'].includes(x)) || /คาวาโกเอะ|kawagoe|川越/.test(txt)) return 'kawagoe';
-  if (ids.some(x => ['sensoji', 'ueno', 'ameyoko', 'skytree', 'sumida_walk'].includes(x)) || /อาซากุสะ|อุเอโนะ|สกายทรี|asakusa|ueno|浅草|上野/.test(txt)) return 'asakusa';
-  if (ids.some(x => ['tsukiji', 'ginza', 'imperial', 'teamlab_planets', 'odaiba'].includes(x)) || /กินซ่า|ซึกิจิ|โตเกียว|โอไดบะ|ginza|tsukiji|銀座|築地/.test(txt)) return 'central';
-  return 'shinjuku';
+  const stopPlaces = d.stops.map(s => PLACES[s.id]).filter(Boolean);
+  const dayRests = (state.restaurants || []).filter(r => r.day === dayIdx + 1);
+  // ตรวจจากจุดแวะในวันนั้นก่อน (แม่นยำที่สุด)
+  for (const p of stopPlaces) {
+    const zk = matchZoneKey(`${tx(p.area)} ${p.name?.th || ''} ${p.name?.ja || ''}`, p.gps);
+    if (zk) return zk;
+  }
+  // ตรวจจากร้านอาหารที่ผูกกับวันนั้น
+  for (const r of dayRests) {
+    const zk = matchZoneKey(`${r.area || ''} ${r.name || ''} ${r.nameJa || ''}`, r.gps);
+    if (zk) return zk;
+  }
+  // ตรวจจากชื่อวัน
+  const titleZk = matchZoneKey(`${tx(d.title)} ${tx(d.note || '')}`);
+  if (titleZk) return titleZk;
+  // ถ้าเป็นวันว่าง ให้ดูโซนที่ยังไม่ได้ไปในวันอื่น
+  const usedZones = new Set(state.days.map((_, idx) => idx === dayIdx ? null : (state.days[idx].stops.length ? detectDayZoneFromStopsOnly(idx) : null)).filter(Boolean));
+  const unused = Object.keys(ZONE_DISCOVERY).find(k => !usedZones.has(k));
+  return unused || 'ginza_tsukiji';
+}
+
+function detectDayZoneFromStopsOnly(dayIdx) {
+  const d = state.days[dayIdx];
+  if (!d) return null;
+  for (const s of d.stops) {
+    const p = PLACES[s.id];
+    if (p) {
+      const zk = matchZoneKey(`${tx(p.area)} ${p.name?.th || ''} ${p.name?.ja || ''}`, p.gps);
+      if (zk) return zk;
+    }
+  }
+  return matchZoneKey(tx(d.title));
 }
 
 function analyzeRouteIssues() {
@@ -1028,74 +1344,110 @@ function analyzeRouteIssues() {
     const stops = d.stops.map(s => ({ id: s.id, p: PLACES[s.id] })).filter(x => x.p && x.p.gps);
     for (let k = 1; k < stops.length; k++) {
       const dist = gpsDistKm(stops[k - 1].p.gps, stops[k].p.gps);
-      if (dist && dist > 22 && d.mode !== 'car') {
-        warnings.push(`${t('day_n', { n: i + 1 })}: <b>${esc(pName(stops[k - 1].p))} → ${esc(pName(stops[k].p))}</b> ห่างกันถึง ${dist.toFixed(1)} กม. (คนละโซน ควรแยกวันหรือจัดลำดับใหม่)`);
+      if (dist && dist > 18 && d.mode !== 'car') {
+        warnings.push(`${t('day_n', { n: i + 1 })}: <b>${esc(pName(stops[k - 1].p))} → ${esc(pName(stops[k].p))}</b> ห่างกันถึง ${dist.toFixed(1)} กม. (คนละโซน ควรแยกวันหรือกดปุ่มเรียงตามเส้นทาง)`);
       }
     }
     if (stops.length >= 3) {
       const d01 = gpsDistKm(stops[0].p.gps, stops[1].p.gps) || 0;
       const d12 = gpsDistKm(stops[1].p.gps, stops[2].p.gps) || 0;
       const d02 = gpsDistKm(stops[0].p.gps, stops[2].p.gps) || 0;
-      if (d01 + d12 > d02 * 1.8 && d01 + d12 - d02 > 6) {
-        warnings.push(`${t('day_n', { n: i + 1 })}: ลำดับ <b>${esc(pName(stops[0].p))} → ${esc(pName(stops[1].p))} → ${esc(pName(stops[2].p))}</b> มีย้อนเส้นทาง ลองสลับจุดที่อยู่ใกล้กันติดกันจะประหยัดเวลาขึ้น`);
+      if (d01 + d12 > d02 * 1.7 && d01 + d12 - d02 > 4) {
+        warnings.push(`${t('day_n', { n: i + 1 })}: ลำดับ <b>${esc(pName(stops[0].p))} → ${esc(pName(stops[1].p))} → ${esc(pName(stops[2].p))}</b> มีย้อนเส้นทาง <button class="mini" onclick="sortDayByGps(${i});renderAI()">✨ เรียงใหม่ทันที</button>`);
       }
     }
   });
   return warnings;
 }
 
-function buildSmartRecs(q = '') {
+function buildSmartRecs(q = '', forceZone = null, forceDayIdx = null) {
   const ql = String(q || '').toLowerCase();
   const dayMatch = ql.match(/(?:วันที่|day|日目|\b)(\d+)\b/);
   let targetDays = state.days.map((_, i) => i);
-  if (dayMatch) {
+  if (forceDayIdx !== null && forceDayIdx >= 0 && forceDayIdx < state.days.length) {
+    targetDays = [forceDayIdx];
+  } else if (dayMatch) {
     const idx = Math.max(0, Math.min(state.days.length - 1, parseInt(dayMatch[1], 10) - 1));
     targetDays = [idx];
   }
+  const qZone = forceZone || matchZoneKey(ql);
   const usedPlaceIds = new Set(state.days.flatMap(d => d.stops.map(s => s.id)));
-  const usedRestNames = new Set((state.restaurants || []).map(r => String(r.name || '').trim().toLowerCase()));
   const places = [];
   const restaurants = [];
 
   const isRain = /ฝน|rain|雨|ในร่ม/.test(ql);
   if (isRain) {
-    ['teamlab_planets', 'skytree'].forEach(pid => {
-      const z = pid === 'skytree' ? ZONE_DISCOVERY.asakusa : ZONE_DISCOVERY.central;
-      const found = z.places.find(x => x.id === pid);
-      if (found && !usedPlaceIds.has(found.id)) places.push({ ...found, day: (targetDays[0] || 0) + 1 });
+    ['teamlab_planets', 'skytree', 'tokyo_char_st', 'azabudai_hills'].forEach(pid => {
+      for (const z of Object.values(ZONE_DISCOVERY)) {
+        const found = z.places.find(x => x.id === pid);
+        if (found && !usedPlaceIds.has(found.id) && !places.some(x => x.id === found.id)) {
+          places.push({ ...found, day: (targetDays[0] || 0) + 1 });
+        }
+      }
     });
   }
 
   targetDays.forEach(dIdx => {
-    const zKey = detectDayZone(dIdx);
+    const zKey = qZone || detectDayZone(dIdx);
     const z = ZONE_DISCOVERY[zKey] || ZONE_DISCOVERY.shinjuku;
-    // แนะนำสถานที่ในโซนเดียวกัน (ทั้งที่มีใน PLACES แต่ยังไม่ได้ใส่ในทริป และสถานที่ใหม่ในโซนนั้น)
+    const dayStops = state.days[dIdx]?.stops.map(s => PLACES[s.id]).filter(Boolean) || [];
+    const refGps = dayStops[0]?.gps || z.center;
+
+    // 1. ค้นหาที่เที่ยวใน PLACES (รวมถึงจาก Sheet และที่สร้างเอง) ที่อยู่ในโซนเดียวกันแต่ยังไม่ได้ใส่ในทริป
     Object.entries(PLACES).forEach(([id, p]) => {
       if (usedPlaceIds.has(id) || places.some(x => x.id === id)) return;
-      const firstStop = state.days[dIdx].stops[0] && PLACES[state.days[dIdx].stops[0].id];
-      const dist = firstStop && firstStop.gps && p.gps ? gpsDistKm(firstStop.gps, p.gps) : null;
-      if (dist !== null && dist <= 6) {
-        places.push({ id, name: p.name, area: p.area, dur: p.dur, gps: p.gps, art: p.art, hi: { th: (p.hi?.th || [])[0] || '', ja: (p.hi?.ja || [])[0] || '' }, day: dIdx + 1 });
+      const pZk = matchZoneKey(`${tx(p.area)} ${p.name?.th || ''} ${p.name?.ja || ''}`, p.gps);
+      const dist = refGps && p.gps ? gpsDistKm(refGps, p.gps) : null;
+      if (pZk === zKey || (dist !== null && dist <= 7)) {
+        places.push({
+          id, name: p.name, area: p.area, dur: p.dur, gps: p.gps, art: p.art,
+          hi: { th: (p.hi?.th || [])[0] || '', ja: (p.hi?.ja || [])[0] || '' },
+          day: dIdx + 1, distKm: dist, fromUserDb: !!p.src || !!p.custom,
+        });
       }
     });
+
+    // 2. ค้นหาที่เที่ยวแนะนำประจำโซนนั้น
     z.places.forEach(np => {
       if (!usedPlaceIds.has(np.id) && !places.some(x => x.id === np.id)) {
-        places.push({ ...np, day: dIdx + 1 });
+        const dist = refGps && np.gps ? gpsDistKm(refGps, np.gps) : null;
+        places.push({ ...np, day: dIdx + 1, distKm: dist });
       }
     });
+
+    // 3. ค้นหาร้านอาหารที่ผู้ใช้มีใน state.restaurants (หรือดึงจาก Sheet) ที่อยู่ในโซนเดียวกับวันนี้ แต่ยังไม่ได้ระบุเป็นวันนี้
+    (state.restaurants || []).forEach(ur => {
+      if (ur.day === dIdx + 1) return; // ผูกกับวันนี้อยู่แล้ว
+      const rZk = matchZoneKey(`${ur.area || ''} ${ur.name || ''} ${ur.nameJa || ''}`, ur.gps);
+      const dist = refGps && ur.gps ? gpsDistKm(refGps, ur.gps) : null;
+      if (rZk === zKey || (dist !== null && dist <= 7)) {
+        if (!restaurants.some(x => x.name === ur.name)) {
+          restaurants.push({ ...ur, day: dIdx + 1, distKm: dist, existingId: ur.id, fromUserSheet: true });
+        }
+      }
+    });
+
+    // 4. ค้นหาร้านอาหารแนะนำประจำโซนนั้นทั้งหมด (เรียงตามระยะห่างจากจุดแวะในวันนั้น)
+    const dayRestNames = new Set((state.restaurants || []).filter(r => r.day === dIdx + 1).map(r => String(r.name || '').trim().toLowerCase()));
     z.restaurants.forEach(nr => {
-      if (!usedRestNames.has(String(nr.name).trim().toLowerCase()) && !restaurants.some(x => x.name === nr.name)) {
-        restaurants.push({ ...nr, day: dIdx + 1 });
+      const key = String(nr.name).trim().toLowerCase();
+      if (!dayRestNames.has(key) && !restaurants.some(x => String(x.name).trim().toLowerCase() === key)) {
+        const dist = refGps && nr.gps ? gpsDistKm(refGps, nr.gps) : null;
+        restaurants.push({ ...nr, day: dIdx + 1, distKm: dist });
       }
     });
   });
 
+  places.sort((a, b) => (b.fromUserDb ? 1 : 0) - (a.fromUserDb ? 1 : 0) || ((a.distKm ?? 99) - (b.distKm ?? 99)));
+  restaurants.sort((a, b) => (b.fromUserSheet ? 1 : 0) - (a.fromUserSheet ? 1 : 0) || ((a.distKm ?? 99) - (b.distKm ?? 99)));
+
   const onlyFood = /ร้าน|อาหาร|กิน|หิว|ราเมน|เนื้อ|ซูชิ|คาเฟ่|グルメ|レストラン|食/.test(ql) && !/ที่เที่ยว|แพลน|โซน/.test(ql);
   const onlyPlaces = /ที่เที่ยว|จุดแวะ|ว่าง|ฝน|スポット|観光/.test(ql) && !/ร้าน|อาหาร|กิน/.test(ql);
+  const singleDay = targetDays.length === 1;
 
   return {
-    places: onlyFood ? [] : places.slice(0, dayMatch ? 4 : 5),
-    restaurants: onlyPlaces ? [] : restaurants.slice(0, dayMatch ? 4 : 6),
+    places: onlyFood ? [] : places.slice(0, singleDay ? 8 : 10),
+    restaurants: onlyPlaces ? [] : restaurants.slice(0, singleDay ? 8 : 12),
   };
 }
 
@@ -1103,20 +1455,25 @@ function recsCard(recs, msgIdx) {
   if (!recs || ((!recs.places || !recs.places.length) && (!recs.restaurants || !recs.restaurants.length))) return '';
   let out = '';
   if (recs.places && recs.places.length) {
-    out += `<div class="plan-card" style="margin-top:8px"><b>${t('ai_nearby_places')}</b><div class="ai-recs-list">${recs.places.map((p, pi) => {
+    out += `<div class="plan-card" style="margin-top:8px"><b>${t('ai_nearby_places')} (${recs.places.length})</b><div class="ai-recs-list">${recs.places.map((p, pi) => {
       const name = tx(p.name) || p.name;
       const area = tx(p.area) || p.area || '';
       const hi = typeof p.hi === 'object' ? tx(p.hi) : (p.hi || '');
       const dayN = p.day || (ui.day + 1);
-      return `<div class="rep-row" style="align-items:center;gap:8px;padding:7px 0"><div class="grow"><b>${esc(name)}</b> <span class="muted small">· ${esc(area)} (${t('day_n', { n: dayN })})</span>${hi ? `<div class="small muted">${esc(hi)}</div>` : ''}</div>
+      const distTxt = p.distKm != null ? ` · ~${p.distKm.toFixed(1)} กม.` : '';
+      return `<div class="ai-rec-item"><div class="grow"><b>${esc(name)}</b>${p.fromUserDb ? ` <span class="chip c-matcha mini-chip">ใน Sheet/แอป</span>` : ''} <span class="muted small">· ${esc(area)}${distTxt} (${t('day_n', { n: dayN })})</span>${hi ? `<div class="small muted">${esc(hi)}</div>` : ''}</div>
         ${p.added ? `<span class="ok small">✓</span>` : `<button class="mini" onclick="addAiPlace(${msgIdx},${pi})">${t('ai_add_place', { d: dayN })}</button>`}</div>`;
     }).join('')}</div></div>`;
   }
   if (recs.restaurants && recs.restaurants.length) {
-    out += `<div class="plan-card" style="margin-top:8px"><b>${t('ai_nearby_rests')}</b><div class="ai-recs-list">${recs.restaurants.map((r, ri) => {
+    out += `<div class="plan-card" style="margin-top:8px"><b>${t('ai_nearby_rests')} (${recs.restaurants.length})</b><div class="ai-recs-list">${recs.restaurants.map((r, ri) => {
       const dayN = r.day || 0;
-      return `<div class="rep-row" style="align-items:center;gap:8px;padding:7px 0"><div class="grow"><b>🍜 ${esc(r.name)}</b>${r.nameJa ? ` <span class="muted small">(${esc(r.nameJa)})</span>` : ''} <span class="muted small">· ${esc(r.area || '')}${dayN ? ' · ' + t('day_n', { n: dayN }) : ''}</span>${r.note ? `<div class="small muted">${esc(r.note)}</div>` : ''}</div>
-        ${r.added ? `<span class="ok small">✓</span>` : `<button class="mini" onclick="addAiRest(${msgIdx},${ri})">${t('ai_add_rest')}</button>`}</div>`;
+      const mealTxt = r.meal ? t('meal_' + r.meal) : '';
+      const distTxt = r.distKm != null ? ` · ~${r.distKm.toFixed(1)} กม.` : '';
+      return `<div class="ai-rec-item"><div class="grow"><b>🍜 ${esc(r.name)}</b>${r.nameJa ? ` <span class="muted small">(${esc(r.nameJa)})</span>` : ''}${r.fromUserSheet ? ` <span class="chip c-yuzu mini-chip">ร้านของเรา</span>` : ''}
+        <div class="small muted">${[mealTxt, r.area, dayN ? t('day_n', { n: dayN }) : '', distTxt.replace(/^ · /, '')].filter(Boolean).join(' · ')}</div>
+        ${r.note ? `<div class="small muted">🍴 ${esc(r.note)}</div>` : ''}</div>
+        ${r.added ? `<span class="ok small">✓</span>` : `<button class="mini" onclick="addAiRest(${msgIdx},${ri})">${dayN ? `+ ใส่วันที่ ${dayN}` : t('ai_add_rest')}</button>`}</div>`;
     }).join('')}</div></div>`;
   }
   return out;
@@ -1144,6 +1501,7 @@ function addAiPlace(msgIdx, pIdx) {
   const dayIdx = Math.max(0, Math.min(state.days.length - 1, (p.day || 1) - 1));
   if (!state.days[dayIdx].stops.some(s => s.id === id)) {
     state.days[dayIdx].stops.push({ id, leg: 25 });
+    recalcDayLegs(dayIdx);
   }
   p.added = true;
   saveState(); renderAI();
@@ -1154,8 +1512,11 @@ function addAiRest(msgIdx, rIdx) {
   const m = aiLog[msgIdx], r = m?.recs?.restaurants?.[rIdx];
   if (!r) return;
   state.restaurants = state.restaurants || [];
-  const exists = state.restaurants.find(x => String(x.name).trim().toLowerCase() === String(r.name).trim().toLowerCase());
-  if (!exists) {
+  const exists = state.restaurants.find(x => (r.existingId && x.id === r.existingId) || String(x.name).trim().toLowerCase() === String(r.name).trim().toLowerCase());
+  if (exists) {
+    if (r.day) exists.day = Number(r.day);
+    if (r.gps && !exists.gps) exists.gps = parseGps(r.gps) || r.gps;
+  } else {
     state.restaurants.push({
       id: uid('r'),
       name: r.name,
@@ -1173,15 +1534,100 @@ function addAiRest(msgIdx, rIdx) {
   toast(t('ai_added_rest', { name: r.name }));
 }
 
+function showZoneRecs(dayIdx, zoneKey = null) {
+  const dIdx = dayIdx != null ? dayIdx : ui.day;
+  const zKey = zoneKey || detectDayZone(dIdx);
+  const z = ZONE_DISCOVERY[zKey] || ZONE_DISCOVERY.shinjuku;
+  const recs = buildSmartRecs('', zKey, dIdx);
+  const dayTitle = state.days[dIdx] ? tx(state.days[dIdx].title) : '';
+  const html = `<b>📍 ${t('day_n', { n: dIdx + 1 })} (${esc(dayTitle)}) — ${esc(tx(z.label))}</b><div class="small muted" style="margin-top:4px">คัดเลือกสถานที่ท่องเที่ยวและร้านอาหารที่อยู่ในโซนพื้นที่เดียวกันและเรียงตามระยะห่างจากจุดแวะของวันนี้ กด <b>+</b> เพื่อเพิ่มเข้าแผนได้ทันที:</div>`;
+  aiLog.push({ me: false, html, recs });
+  renderAI();
+}
+
+function autoOrganizeTripByZone() {
+  let matchedRests = 0;
+  // 1. เรียงลำดับจุดแวะในแต่ละวันตามพิกัด GPS ไม่ให้ย้อนทาง
+  state.days.forEach((d, idx) => {
+    if (d.stops.length >= 2) {
+      const iso = isoOf(dateOfDay(idx));
+      const hs = hotelMorning(iso);
+      let curGps = hs?.gps || placeOf(d.stops[0].id)?.gps || '';
+      const pool = [...d.stops];
+      const sorted = [];
+      while (pool.length) {
+        let bestIdx = 0, bestDist = Infinity;
+        pool.forEach((s, k) => {
+          const g = placeOf(s.id)?.gps;
+          const dist = (curGps && g) ? (gpsDistKm(curGps, g) ?? 999) : (k * 10);
+          if (dist < bestDist) { bestDist = dist; bestIdx = k; }
+        });
+        const [picked] = pool.splice(bestIdx, 1);
+        sorted.push(picked);
+        if (placeOf(picked.id)?.gps) curGps = placeOf(picked.id).gps;
+      }
+      d.stops = sorted;
+    }
+    recalcDayLegs(idx);
+  });
+
+  // 2. จับคู่ร้านอาหารในลิสต์ที่ยังไม่ได้ระบุวัน (day === 0) เข้ากับวันที่ไปเที่ยวโซนนั้นโดยอัตโนมัติ
+  const dayZones = state.days.map((_, i) => detectDayZone(i));
+  (state.restaurants || []).forEach(r => {
+    if (r.day && r.day > 0) return;
+    const rZk = matchZoneKey(`${r.area || ''} ${r.name || ''} ${r.nameJa || ''}`, r.gps);
+    if (rZk) {
+      const matchDayIdx = dayZones.findIndex(zk => zk === rZk);
+      if (matchDayIdx >= 0) {
+        r.day = matchDayIdx + 1;
+        matchedRests++;
+        return;
+      }
+    }
+    // ถ้าเทียบจากพิกัด GPS กับจุดแวะในแต่ละวัน
+    if (r.gps) {
+      let bestDay = -1, bestDist = 8;
+      state.days.forEach((d, idx) => {
+        d.stops.forEach(s => {
+          const pg = placeOf(s.id)?.gps;
+          const dist = pg ? gpsDistKm(r.gps, pg) : null;
+          if (dist !== null && dist < bestDist) { bestDist = dist; bestDay = idx; }
+        });
+      });
+      if (bestDay >= 0) { r.day = bestDay + 1; matchedRests++; }
+    }
+  });
+
+  saveState();
+  aiLog.push({
+    me: false,
+    html: `✅ <b>${t('ai_organized_ok')}</b>${matchedRests ? ` (จับคู่ร้านอาหารเข้าตามโซนวันเที่ยวให้แล้ว ${matchedRests} ร้าน)` : ''}<hr class="soft">${localCheck()}`,
+    recs: buildSmartRecs(),
+  });
+  renderAI();
+  toast(t('ai_organized_ok'));
+}
+
 function renderAI() {
   const target = state.days.findIndex(d => !d.stops.length);
+  const planIdx = target >= 0 ? target : ui.day;
   $('#s-ai').innerHTML = topbar(t('ai_eyebrow'), t('ai_title')) + `
   <div class="ai-badge ${aiReady() ? 'on' : ''}">${aiReady() ? '✨ ' + t('ai_gemini_on') : `${t('ai_local_mode')} · <a href="#" onclick="openCloud();return false">${t('ai_connect')}</a>`}</div>
+  <div class="ai-zone-bar">
+    <div class="small" style="font-weight:600;margin-bottom:6px">${t('ai_zone_picker')}</div>
+    <div class="cat-pick" style="margin-bottom:8px">
+      ${state.days.map((d, idx) => { const zk = detectDayZone(idx); const zn = tx(ZONE_DISCOVERY[zk]?.short) || ''; return `<button class="chip c-sora" onclick="showZoneRecs(${idx})">${t('day_n', { n: idx + 1 })} · ${esc(zn)}</button>`; }).join('')}
+    </div>
+    <div class="cat-pick" style="margin-bottom:10px">
+      ${Object.entries(ZONE_DISCOVERY).map(([zk, z]) => `<button class="chip" onclick="showZoneRecs(${ui.day},'${zk}')">📍 ${esc(tx(z.short))}</button>`).join('')}
+    </div>
+    <button class="btn btn-ink wide" style="height:42px;font-size:14px" onclick="autoOrganizeTripByZone()">${t('ai_organize_trip')}</button>
+  </div>
   <div class="bubble b-ai">${t('ai_hello')}</div>
   <div id="aiLog">${aiLog.map((m, i) => `<div class="bubble ${m.me ? 'b-me' : 'b-ai'}">${m.html}${m.recs ? recsCard(m.recs, i) : ''}${m.plan ? planCard(m.plan, i) : ''}</div>`).join('')}
     ${aiBusy ? `<div class="bubble b-ai typing"><span></span><span></span><span></span></div>` : ''}</div>
   <div class="suggest">${['ai_q1', 'ai_q2', 'ai_q3', 'ai_q4'].map(k => `<button class="chip" onclick="askAI(t('${k}'))" ${aiBusy ? 'disabled' : ''}>${t(k)}</button>`).join('')}
-    <button class="chip c-fuji" onclick="planDay(${target >= 0 ? target : ui.day})" ${aiBusy ? 'disabled' : ''}>${ic('ai')}${t('ai_plan_day', { n: (target >= 0 ? target : ui.day) + 1 })}</button></div>
+    <button class="chip c-fuji" onclick="planDay(${planIdx})" ${aiBusy ? 'disabled' : ''}>${ic('ai')}${t('ai_plan_day', { n: planIdx + 1 })}</button></div>
   <form class="composer" onsubmit="event.preventDefault();askAI(this.q.value);this.q.value=''"><input name="q" placeholder="${t('ai_ph')}" autocomplete="off" ${aiBusy ? 'disabled' : ''}><button class="send" aria-label="send" ${aiBusy ? 'disabled' : ''}>${ic('back', 'flip')}</button></form>
   <p class="note">${t('ai_note')}</p>`;
   setTimeout(() => $('#aiLog')?.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
@@ -1193,7 +1639,7 @@ function localCheck(q = '') {
     const zKey = detectDayZone(i);
     const zName = tx(ZONE_DISCOVERY[zKey]?.label) || '';
     const dRests = (state.restaurants || []).filter(r => r.day === i + 1);
-    return `<li><b>${t('day_n', { n: i + 1 })}</b> ${esc(tx(d.title))} <span class="muted small">(${esc(zName)})</span> — ${t('lv_' + ld.lv)}${ld.n ? ` (${t('n_places', { n: ld.n })}, ${durTxt(ld.s.total)})` : ''}${dRests.length ? ` · 🍜 ${dRests.map(r => esc(r.name)).join(', ')}` : ' · <span class="muted small">ยังไม่ได้ระบุร้านอาหารประจำวัน</span>'}</li>`;
+    return `<li><b>${t('day_n', { n: i + 1 })}</b> ${esc(tx(d.title))} <span class="muted small">(${esc(zName)})</span> — ${t('lv_' + ld.lv)}${ld.n ? ` (${t('n_places', { n: ld.n })}, ${durTxt(ld.s.total)})` : ''}${dRests.length ? ` · 🍜 ${dRests.map(r => esc(r.name)).join(', ')}` : ` · <a href="#" onclick="showZoneRecs(${i});return false">เลือกร้านอาหารในโซนนี้</a>`}</li>`;
   }).join('');
   const warnings = analyzeRouteIssues();
   const routeHtml = warnings.length
@@ -1230,16 +1676,25 @@ async function planDay(i) {
   const q = t('ai_plan_q', { n: i + 1, date: isoOf(dateOfDay(i)) });
   aiLog.push({ me: true, text: q, html: esc(q) });
   if (!aiReady()) {
-    const zKey = detectDayZone(i === 3 ? 4 : i);
-    const z = ZONE_DISCOVERY[zKey] || ZONE_DISCOVERY.central;
+    const zKey = detectDayZone(i);
+    const z = ZONE_DISCOVERY[zKey] || ZONE_DISCOVERY.ginza_tsukiji;
     const newPlaces = {};
     z.places.forEach(np => {
       newPlaces[np.id] = { name: np.name, ro: np.name.ja, area: np.area, art: np.art || 'city', dur: np.dur || 60, gps: np.gps || '', mapcode: '', hi: { th: [np.hi.th], ja: [np.hi.ja] }, miss: { th: [], ja: [] }, transit: { th: '', ja: '' }, custom: true };
     });
-    const baseStops = Object.keys(PLACES).filter(id => !state.days.some(d => d.stops.some(s => s.id === id))).slice(0, 2);
-    const stops = [...baseStops.map(id => ({ id, leg: 25 })), ...z.places.slice(0, 2).map(np => ({ id: np.id, leg: 25 }))].slice(0, 3);
-    const plan = { day: i, title: z.label, mode: zKey === 'fuji' ? 'car' : 'transit', start: '09:30', stops, newPlaces, restaurants: z.restaurants.slice(0, 2), tip: t('ai_plan_ready') };
-    aiLog.push({ me: false, text: `(plan for day ${i + 1})`, html: esc(plan.tip), plan });
+    // เลือกเฉพาะสถานที่ที่อยู่ในโซนเดียวกันเท่านั้น (ไม่ปนโซนอื่น)
+    const usedIds = new Set(state.days.flatMap((d, idx) => idx === i ? [] : d.stops.map(s => s.id)));
+    const existingStops = state.days[i].stops.map(s => s.id).filter(id => PLACES[id]);
+    const sameZoneInPlaces = Object.entries(PLACES)
+      .filter(([id, p]) => !usedIds.has(id) && !existingStops.includes(id) && matchZoneKey(`${tx(p.area)} ${p.name?.th || ''} ${p.name?.ja || ''}`, p.gps) === zKey)
+      .map(([id]) => id);
+    const combinedIds = [...existingStops, ...sameZoneInPlaces, ...z.places.map(np => np.id).filter(id => !usedIds.has(id) && !existingStops.includes(id))].slice(0, 4);
+    const stops = combinedIds.map(id => ({ id, leg: zKey === 'fuji' ? 25 : 20 }));
+    // เลือกร้านอาหารในโซนเดียวกัน (รวมร้านของผู้ใช้ในโซนนั้น + ร้านแนะนำประจำโซน)
+    const userZoneRests = (state.restaurants || []).filter(r => matchZoneKey(`${r.area || ''} ${r.name || ''}`, r.gps) === zKey);
+    const planRests = [...userZoneRests, ...z.restaurants].slice(0, 3);
+    const plan = { day: i, title: z.label, mode: zKey === 'fuji' ? 'car' : 'transit', start: '09:00', stops, newPlaces, restaurants: planRests, tip: t('ai_plan_ready'), recs: buildSmartRecs('', zKey, i) };
+    aiLog.push({ me: false, text: `(plan for day ${i + 1})`, html: esc(plan.tip), plan, recs: plan.recs });
     renderAI();
     return;
   }
@@ -1249,7 +1704,8 @@ async function planDay(i) {
     const plan = parsePlan(text);
     if (!plan) throw new Error(t('ai_plan_bad'));
     plan.day = i;
-    aiLog.push({ me: false, text: `(plan for day ${i + 1}) ` + plan.stops.map(s => s.id).join(', '), html: esc(plan.tip || t('ai_plan_ready')), plan });
+    const zKey = detectDayZone(i);
+    aiLog.push({ me: false, text: `(plan for day ${i + 1}) ` + plan.stops.map(s => s.id).join(', '), html: esc(plan.tip || t('ai_plan_ready')), plan, recs: buildSmartRecs('', zKey, i) });
   } catch (e) {
     aiLog.push({ me: false, html: `⚠️ ${esc(t('ai_fail', { e: e.message }))}` });
   } finally { aiBusy = false; renderAI(); }
