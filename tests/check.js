@@ -36,7 +36,7 @@ const sandbox = {
   document: { addEventListener: noop, querySelector: () => null, querySelectorAll: () => [], documentElement: {}, body: { style: {} } },
   window: { addEventListener: noop, scrollTo: noop },
   location: { hash: '' }, navigator: {}, setTimeout, clearTimeout, AbortController, fetch: () => Promise.reject(new Error('offline')),
-  URL, Intl, Date, Math, JSON, Promise,
+  URL, Intl, Date, Math, JSON, Promise, DataView, ArrayBuffer, Uint8Array,
 };
 vm.createContext(sandbox);
 
@@ -204,6 +204,52 @@ G(`state.hotels = [{id:'h1',name:'Shinjuku Hotel',gps:'35.69395, 139.70147',chec
 eq(G(`state.days.length`), 7, 'syncTripDaysWithHotels ขยายจำนวนวันในทริปให้ครบตามวันเช็คเอาท์ของโรงแรมโดยอัตโนมัติ (9–15 พ.ย. = 7 วัน)');
 G(`state.days = state.days.slice(0, 5); state.hotels[0].checkout = '2026-11-13';`);
 check(G(`(() => { const p = buildPlanFromPrompt('วันที่ 4 อยากไปชิบูย่าสกาย สวนชินจูกุเกียวเอ็น ศาลเจ้าเมจิ และห้าแยกชิบูย่า จัดเส้นทางไม่ให้ย้อนให้หน่อย'); const idxG = p.stops.findIndex(s => s.id === 'gyoen'); const idxM = p.stops.findIndex(s => s.id === 'meiji'); const idxS = p.stops.findIndex(s => s.id === 'shibuyasky'); return p.day === 3 && idxG >= 0 && idxM >= 0 && idxS >= 0 && idxG < idxM && idxM < idxS; })()`), 'buildPlanFromPrompt สกัดสถานที่จากประโยคและเรียงลำดับเส้นทางจากโรงแรมชินจูกุ (ชินจูกุเกียวเอ็น -> เมจิ -> ชิบูย่าสกาย) โดยไม่ย้อนกลับ');
+G(`setPlaceArt('sensoji', 'fuji');`);
+eq(G(`PLACES.sensoji.art`), 'fuji', 'setPlaceArt เปลี่ยนรูปเวกเตอร์ของสถานที่ได้');
+G(`setPlaceArt('sensoji', 'temple'); delete state.customPlaces.sensoji; mergePlaces();`);
+G(`changePlaceDay('kashiya', 3, 'ai');`);
+eq(G(`placeDaysOf('kashiya')`), [3], 'changePlaceDay ย้ายวันของแหล่งท่องเที่ยวที่เลือกไปแล้วได้ทันที');
+G(`changePlaceDay('kashiya', 1, 'ai');`);
+check(G(`(() => {
+  // สร้าง JPEG EXIF GPS จำลอง (พิกัด Sensoji 35.71480, 139.79665)
+  const buf = new ArrayBuffer(140);
+  const v = new DataView(buf);
+  v.setUint16(0, 0xFFD8, false); // SOI
+  v.setUint16(2, 0xFFE1, false); // APP1
+  v.setUint16(4, 130, false);    // Length
+  v.setUint32(6, 0x45786966, false); // "Exif"
+  v.setUint16(10, 0, false);
+  const tiff = 12;
+  v.setUint16(tiff, 0x4D4D, false); // Big-endian
+  v.setUint16(tiff + 2, 42, false);
+  v.setUint32(tiff + 4, 8, false);  // IFD0 offset = 8 (pos 20)
+  v.setUint16(20, 1, false);        // 1 entry in IFD0
+  v.setUint16(22, 0x8825, false);   // GPS IFD tag
+  v.setUint16(24, 4, false);
+  v.setUint32(26, 1, false);
+  v.setUint32(30, 26, false);       // GPS IFD offset = 26 (pos 38)
+  v.setUint16(38, 4, false);        // 4 entries in GPS IFD
+  // Entry 0: LatRef 'N'
+  v.setUint16(40, 1, false); v.setUint16(42, 2, false); v.setUint32(44, 2, false); v.setUint8(48, 78);
+  // Entry 1: Lat (offset 78 -> pos 90)
+  v.setUint16(52, 2, false); v.setUint16(54, 5, false); v.setUint32(56, 3, false); v.setUint32(60, 78, false);
+  // Entry 2: LonRef 'E'
+  v.setUint16(64, 3, false); v.setUint16(66, 2, false); v.setUint32(68, 2, false); v.setUint8(72, 69);
+  // Entry 3: Lon (offset 102 -> pos 114)
+  v.setUint16(76, 4, false); v.setUint16(78, 5, false); v.setUint32(80, 3, false); v.setUint32(84, 102, false);
+  // Lat rationals: 35 deg, 42 min, 53.28 sec (35.71480)
+  v.setUint32(90, 35, false); v.setUint32(94, 1, false);
+  v.setUint32(98, 42, false); v.setUint32(102, 1, false);
+  v.setUint32(106, 5328, false); v.setUint32(110, 100, false);
+  // Lon rationals: 139 deg, 47 min, 47.94 sec (139.79665)
+  v.setUint32(114, 139, false); v.setUint32(118, 1, false);
+  v.setUint32(122, 47, false); v.setUint32(126, 1, false);
+  v.setUint32(130, 4794, false); v.setUint32(134, 100, false);
+  return parseExifGpsFromBuffer(buf) === '35.71480, 139.79665';
+})()`), 'parseExifGpsFromBuffer สกัดพิกัด GPS จากไฟล์ภาพ EXIF ได้ถูกต้อง');
+G(`state.customPlaces = { c_gps: { name: { th: 'จุดชมวิวลับ', ja: '秘密の展望台' }, dur: 60, gps: '' } }; mergePlaces(); applyGpsToEntity('c_gps', '35.65858, 139.74543', false);`);
+eq(G(`PLACES.c_gps.gps`), '35.65858, 139.74543', 'applyGpsToEntity บันทึกพิกัด GPS จากรูปภาพเข้าสถานที่ท่องเที่ยวได้ทันที');
+G(`delete state.customPlaces.c_gps; mergePlaces();`);
 G(`state.expenses = [{id:'a',amount:1,cur:'JPY',cat:'food',day:1},{id:'b',amount:2,cur:'JPY',cat:'food',day:1}]`);
 G(`state.restaurants = [{id:'r1',name:'Local Rest',meal:'lunch',day:1}]`);
 G(`mergeRemote({expenses:[{id:'b',amount:99,cur:'JPY',cat:'food',day:1},{id:'c',amount:3,cur:'JPY',cat:'food',day:1}], hotels:[], restaurants:[{id:'r1',name:'Old',meal:'lunch',day:1},{id:'r2',name:'Remote Rest',meal:'dinner',day:2}], customPlaces:{x:{name:{th:'X'}}}})`);
@@ -291,8 +337,9 @@ try {
   eq(back.oishi.gps, PLACES.oishi.gps, 'GPS กลับมาตรงกัน');
 
   const tiny = 'data:image/jpeg;base64,' + Buffer.from('fakejpeg').toString('base64');
-  const ph = call({ action: 'photo', key: KEY, tripId: 'tokyo-2026', placeId: 'sensoji', dataUrl: tiny });
-  check(ph.ok && /thumbnail\?id=/.test(ph.url), 'อัปรูปขึ้น Drive ได้ลิงก์ภาพ');
+  const ph = call({ action: 'photo', key: KEY, tripId: 'tokyo-2026', placeId: 'sensoji', dataUrl: tiny, gps: '35.71480, 139.79665' });
+  check(ph.ok && /thumbnail\?id=.*&sz=w1600/.test(ph.url), 'อัปรูปขึ้น Drive ได้ลิงก์ภาพความคมชัดสูง (w1600) พร้อมบันทึก GPS');
+  eq(ss.getSheetByName('Photos').rows[1][7], '35.71480, 139.79665', 'บันทึกพิกัด GPS ของรูปลงชีต Photos');
   check(g.files[ph.fileId].sharing[0] === 'ANYONE_WITH_LINK', 'รูปแชร์แบบมีลิงก์เท่านั้นที่ดูได้');
   eq(call({ action: 'pull', key: KEY, tripId: 'tokyo-2026' }).photos.sensoji, [ph.url], 'pull ได้รายการรูปของสถานที่');
   eq(call({ action: 'photo', key: KEY, tripId: 'tokyo-2026', placeId: 'x', dataUrl: 'hello' }).error, 'bad_image', 'ไฟล์ไม่ใช่รูป → bad_image');

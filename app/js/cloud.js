@@ -11,7 +11,7 @@ const CLOUD_KEY = 'tabinote.cloud.v1';
 const SHEET_PLACES_KEY = 'tabinote.sheetplaces.v1';
 const DEFAULT_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbzbGd-ZcQqfYo5UxEXshky9z_XQjgvyv6WaQ4xs8Qhese8UYTrnJI9S8cWbYFdN5NEsDA/exec';
 const BASE_PLACES = { ...PLACES };
-const SHARED_FIELDS = ['trip', 'days', 'hotels', 'restaurants', 'expenses', 'budget', 'customPlaces', 'deletedIds'];
+const SHARED_FIELDS = ['trip', 'days', 'hotels', 'restaurants', 'expenses', 'budget', 'customPlaces', 'deletedIds', 'photoMeta'];
 
 let CLOUD = (() => {
   try {
@@ -186,6 +186,7 @@ function mergeRemote(remote) {
   state.hotels = byId(remote.hotels, state.hotels);
   state.restaurants = byId(remote.restaurants, state.restaurants);
   state.customPlaces = { ...(remote.customPlaces || {}), ...(state.customPlaces || {}) };
+  state.photoMeta = { ...(remote.photoMeta || {}), ...(state.photoMeta || {}) };
   saveState({ localOnly: true });
 }
 
@@ -199,10 +200,12 @@ function mergeRemotePhotos(remote) {
 }
 
 /* ---------- photos ---------- */
-async function uploadPhoto(placeId, dataUrl) {
+async function uploadPhoto(placeId, dataUrl, gps = '') {
   if (!cloudOn()) return null;
-  try { const r = await api('photo', { placeId, dataUrl }, 60000); return r.url; }
-  catch (e) { console.warn('[photo]', e.message); return null; }
+  try {
+    const r = await api('photo', { placeId, dataUrl, ...(gps ? { gps } : {}) }, 60000);
+    return r.url;
+  } catch (e) { console.warn('[photo]', e.message); return null; }
 }
 const driveIdOf = u => (String(u).match(/[?&]id=([\w-]+)/) || [])[1];
 function deleteCloudPhoto(url) {

@@ -477,16 +477,20 @@ function savePhoto_(tripId, req) {
   var m = String(req.dataUrl || '').match(/^data:(image\/[\w+.-]+);base64,(.+)$/);
   if (!m) throw new Error('bad_image');
   var place = cleanId_(req.placeId) || 'misc';
+  var gps = normGps_(req.gps || '');
   var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], place + '_' + Date.now() + '.jpg');
   var file = subFolder_(tripId).createFile(blob);
+  if (gps && typeof file.setDescription === 'function') {
+    try { file.setDescription('GPS: ' + gps + ' | Place: ' + place); } catch (e) { /* ignore */ }
+  }
   // เปิดให้ "ทุกคนที่มีลิงก์ดูได้" เพื่อให้แอปแสดงภาพได้ (ไม่มีใครค้นเจอถ้าไม่มีลิงก์)
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  var url = 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w1200';
+  var url = 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w1600';
   var view = file.getUrl();
   var ss = ss_();
   var sh = ss.getSheetByName('Photos') || ensureTab_(ss, 'Photos');
-  sh.appendRow([tripId, place, file.getId(), url, new Date(), String(req.by || ''), view]);
-  return { fileId: file.getId(), url: url, view: view };
+  sh.appendRow([tripId, place, file.getId(), url, new Date(), String(req.by || ''), view, gps]);
+  return { fileId: file.getId(), url: url, view: view, gps: gps };
 }
 
 function delPhoto_(tripId, fileId) {

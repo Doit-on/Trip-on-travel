@@ -482,18 +482,62 @@ function reorderStop(fromIdx, toIdx) {
 function moveStop(idx, dir) {
   reorderStop(idx, idx + dir);
 }
-function moveStopToDay(placeId, targetDayIdx) {
-  const curStops = state.days[ui.day]?.stops || [];
-  const idx = curStops.findIndex(s => s.id === placeId);
-  if (idx >= 0) curStops.splice(idx, 1);
-  const target = state.days[targetDayIdx];
-  if (target && !target.stops.some(s => s.id === placeId)) {
-    target.stops.push({ id: placeId, leg: target.mode === 'car' ? 25 : 30 });
-    recalcDayLegs(targetDayIdx);
+function placeDaysOf(placeId) {
+  if (!placeId || !state.days) return [];
+  const out = [];
+  state.days.forEach((d, idx) => {
+    if (d.stops && d.stops.some(s => s.id === placeId)) out.push(idx);
+  });
+  return out;
+}
+function ensurePlaceInDb(placeId) {
+  if (PLACES[placeId]) return PLACES[placeId];
+  const catalog = typeof getAllCatalogPlaces === 'function' ? getAllCatalogPlaces() : {};
+  const cp = catalog[placeId];
+  if (cp) {
+    state.customPlaces = state.customPlaces || {};
+    const rec = { ...cp, custom: true };
+    delete rec.zoneKey; delete rec.fromUserDb;
+    state.customPlaces[placeId] = rec;
+    if (typeof mergePlaces === 'function') mergePlaces();
+    else PLACES[placeId] = rec;
+    return PLACES[placeId];
   }
-  recalcDayLegs(ui.day);
-  saveState(); closeSheet(); renderDay();
-  toast(t('moved_to_day', { p: pName(placeOf(placeId)), d: targetDayIdx + 1 }));
+  return null;
+}
+function changePlaceDay(placeId, targetDayIdx, keepSheet = '') {
+  ensurePlaceInDb(placeId);
+  const p = placeOf(placeId);
+  state.days.forEach((d, idx) => {
+    const before = d.stops.length;
+    d.stops = d.stops.filter(s => s.id !== placeId);
+    if (d.stops.length !== before) recalcDayLegs(idx);
+  });
+  if (targetDayIdx >= 0 && targetDayIdx < state.days.length) {
+    const target = state.days[targetDayIdx];
+    if (!target.stops.some(s => s.id === placeId)) {
+      target.stops.push({ id: placeId, leg: target.mode === 'car' ? 25 : 30 });
+      recalcDayLegs(targetDayIdx);
+    }
+    saveState();
+    if ($('#s-day')) renderDay();
+    if (keepSheet === 'addPlace') openAddPlace();
+    else if (keepSheet === 'place') openPlace(placeId);
+    else if (keepSheet === 'ai') { if ($('#s-ai')) renderAI(); }
+    else { closeSheet(); rerender(); }
+    toast(t('moved_to_day', { p: pName(p), d: targetDayIdx + 1 }));
+  } else {
+    saveState();
+    if ($('#s-day')) renderDay();
+    if (keepSheet === 'addPlace') openAddPlace();
+    else if (keepSheet === 'place') openPlace(placeId);
+    else if (keepSheet === 'ai') { if ($('#s-ai')) renderAI(); }
+    else { closeSheet(); rerender(); }
+    toast(t('removed', { p: pName(p) }));
+  }
+}
+function moveStopToDay(placeId, targetDayIdx) {
+  changePlaceDay(placeId, targetDayIdx, '');
 }
 function sortDayByGps(dayIdx = ui.day) {
   const d = state.days[dayIdx];
@@ -564,120 +608,566 @@ function startStopDrag(ev, idx) {
 }
 
 function openAddPlace() {
-  const used = new Set(state.days[ui.day].stops.map(s => s.id));
-  const list = Object.entries(PLACES).filter(([id]) => !used.has(id));
+  const catalog = typeof getAllCatalogPlaces === 'function' ? getAllCatalogPlaces() : PLACES;
+  const allEntries = Object.entries(catalog);
+  // เรียงสถานที่ที่ยังไม่ได้เลือกไว้ด้านบน และสถานที่ที่เลือกไปแล้วไว้ด้านล่าง (ตัวบาง/สีจางแต่เปลี่ยนวันได้)
+  allEntries.sort(([idA], [idB]) => {
+    const pickedA = placeDaysOf(idA).length > 0 ? 1 : 0;
+    const pickedB = placeDaysOf(idB).length > 0 ? 1 : 0;
+    const inBaseA = PLACES[idA] ? 0 : 1;
+    const inBaseB = PLACES[idB] ? 0 : 1;
+    return pickedA - pickedB || inBaseA - inBaseB;
+  });
   openSheet(`<h2 class="sheet-title">${t('add_place')}</h2><p class="muted small">${t('add_place_sub')}</p>
     <button class="place create-place" onclick="openCustomPlace()"><div class="thumb hotel-thumb">${ic('plus')}</div><div class="grow"><div class="t">${t('new_place')}</div><div class="s">${t('new_place_hint')}</div></div></button>
-    <div class="pick-list">${list.map(([id, p]) => `<button class="place" onclick="addStop('${id}')"><div class="thumb">${ART[p.art]}</div>
-      <div class="grow"><div class="t">${esc(pName(p))}</div><div class="s">${esc(tx(p.area))} · ${durTxt(p.dur)}</div></div>${ic('plus', 'add-ic')}</button>`).join('') || `<p class="muted">${t('all_added')}</p>`}</div>`);
+    <div class="pick-list">${allEntries.map(([id, p]) => {
+      const days = placeDaysOf(id);
+      const isPicked = days.length > 0;
+      const artSvg = ART[p.art] || ART.city;
+      if (!isPicked) {
+        return `<button class="place" onclick="addStop('${id}')"><div class="thumb">${artSvg}</div>
+          <div class="grow"><div class="t">${esc(pName(p))}</div><div class="s">${esc(tx(p.area))} · ${durTxt(p.dur || 60)}</div></div>${ic('plus', 'add-ic')}</button>`;
+      }
+      const curDayIdx = days[0];
+      const dayBadge = t('picked_in_day', { d: days.map(d => d + 1).join(', ') });
+      return `<div class="place is-picked">
+        <div class="thumb" onclick="openPlace('${id}')" style="cursor:pointer">${artSvg}</div>
+        <div class="grow" onclick="openPlace('${id}')" style="cursor:pointer">
+          <div class="t">${esc(pName(p))} <span class="chip c-matcha mini-chip">${esc(dayBadge)}</span></div>
+          <div class="s">${esc(tx(p.area))} · ${durTxt(p.dur || 60)}</div>
+        </div>
+        <select class="day-move-sel" aria-label="${t('change_day')}" onchange="changePlaceDay('${id}', +this.value, 'addPlace')">
+          ${state.days.map((d, k) => `<option value="${k}" ${curDayIdx === k ? 'selected' : ''}>📅 ${t('day_n', { n: k + 1 })} (${dShort(k)})</option>`).join('')}
+          <option value="-1">${t('remove_from_trip')}</option>
+        </select>
+      </div>`;
+    }).join('') || `<p class="muted">${t('all_added')}</p>`}</div>`);
 }
 function addStop(id) {
+  ensurePlaceInDb(id);
   const d = state.days[ui.day];
-  d.stops.push({ id, leg: d.mode === 'car' ? 30 : 35 });
-  recalcDayLegs(ui.day);
+  if (!d.stops.some(s => s.id === id)) {
+    d.stops.push({ id, leg: d.mode === 'car' ? 30 : 35 });
+    recalcDayLegs(ui.day);
+  }
   saveState(); closeSheet(); renderDay();
   const ld = loadOf(ui.day);
   toast(ld.lv === 'packed' ? t('too_packed') : t('added', { p: pName(placeOf(id)) }));
 }
 
-/* ============ PLACE SHEET ============ */
+/* ============ PLACE SHEET & SMART PHOTO / DRIVE / EXIF GPS / LIVE CAMERA ============ */
+let camStream = null, camFacing = 'environment', camTargetId = null;
+
+function stopAppCamera() {
+  if (camStream) {
+    try { camStream.getTracks().forEach(tr => tr.stop()); } catch (e) { /* ignore */ }
+    camStream = null;
+  }
+  const box = $('#camBox');
+  if (box) box.classList.remove('on');
+}
+
+function getEntityGps(id) {
+  if (!id) return '';
+  if (PLACES[id]?.gps) return PLACES[id].gps;
+  if (state.customPlaces?.[id]?.gps) return state.customPlaces[id].gps;
+  const h = (state.hotels || []).find(x => x.id === id);
+  if (h?.gps) return h.gps;
+  const r = (state.restaurants || []).find(x => x.id === id);
+  if (r?.gps) return r.gps;
+  const mList = state.photoMeta?.[id] || [];
+  const withGps = mList.find(m => m && m.gps);
+  return withGps ? withGps.gps : '';
+}
+
+function applyGpsToEntity(id, rawGps, showToast = false) {
+  const g = parseGps(rawGps);
+  if (!g || !id) return '';
+  state.photoMeta = state.photoMeta || {};
+  const mList = state.photoMeta[id] = state.photoMeta[id] || [];
+  mList.forEach(m => { if (m && !m.gps) m.gps = g; });
+
+  // อัปเดตช่อง input GPS ที่เปิดอยู่ในหน้าต่างปัจจุบันทันที
+  if ($('#phGpsInput')) $('#phGpsInput').value = g;
+  if ($('#pGps')) { $('#pGps').value = g; if (typeof pGpsCheck === 'function') pGpsCheck(); }
+  if ($('#hGps')) { $('#hGps').value = g; if (typeof gpsCheck === 'function') gpsCheck(); }
+  if ($('#rGps')) { $('#rGps').value = g; if (typeof rGpsCheck === 'function') rGpsCheck(); }
+
+  const h = (state.hotels || []).find(x => x.id === id);
+  const r = (state.restaurants || []).find(x => x.id === id);
+  if (h) {
+    h.gps = g;
+  } else if (r) {
+    r.gps = g;
+  } else if (PLACES[id] || state.customPlaces?.[id]) {
+    ensurePlaceInDb(id);
+    const p = placeOf(id);
+    state.customPlaces = state.customPlaces || {};
+    state.customPlaces[id] = { ...(state.customPlaces[id] || p), gps: g, custom: true };
+    if (PLACES[id]) PLACES[id].gps = g;
+    if (typeof mergePlaces === 'function') mergePlaces();
+  }
+  if ($('#pGps') && !$('#pGps').value.trim()) {
+    $('#pGps').value = g;
+    if (typeof pGpsCheck === 'function') pGpsCheck();
+  }
+  if ($('#phGpsInput')) $('#phGpsInput').value = g;
+  state.days.forEach((_, idx) => recalcDayLegs(idx));
+  saveState();
+  if (showToast) toast(t('photo_gps_saved'));
+  return g;
+}
+
+function getPhotoMeta(id, src, idx) {
+  const list = state.photoMeta?.[id] || [];
+  return list.find(m => m && m.url === src) || list[idx] || {};
+}
+
+function setPhotoMeta(id, src, meta) {
+  state.photoMeta = state.photoMeta || {};
+  const list = state.photoMeta[id] = state.photoMeta[id] || [];
+  const ex = list.find(m => m && m.url === src);
+  if (ex) Object.assign(ex, meta, { url: src });
+  else list.push({ url: src, ...meta });
+}
+
+/** อ่านพิกัด GPS จาก EXIF binary ของไฟล์ JPEG (รองรับทั้งกล้องมือถือและไฟล์ภาพจากคลัง) */
+function parseExifGpsFromBuffer(buf) {
+  try {
+    const view = new DataView(buf);
+    if (view.byteLength < 12 || view.getUint16(0, false) !== 0xFFD8) return null;
+    let offset = 2;
+    while (offset + 4 <= view.byteLength) {
+      const marker = view.getUint16(offset, false);
+      offset += 2;
+      if (marker === 0xFFE1) {
+        const len = view.getUint16(offset, false);
+        if (offset + 8 <= view.byteLength && view.getUint32(offset + 2, false) === 0x45786966) {
+          const tiff = offset + 8;
+          const little = view.getUint16(tiff, false) === 0x4949;
+          const u16 = p => view.getUint16(p, little);
+          const u32 = p => view.getUint32(p, little);
+          const rat = p => {
+            const num = u32(p), den = u32(p + 4);
+            return den ? num / den : 0;
+          };
+          const ifd0 = tiff + u32(tiff + 4);
+          if (ifd0 + 2 > view.byteLength) return null;
+          const entries = u16(ifd0);
+          let gpsIfd = 0;
+          for (let i = 0; i < entries; i++) {
+            const ep = ifd0 + 2 + i * 12;
+            if (ep + 12 > view.byteLength) break;
+            if (u16(ep) === 0x8825) { gpsIfd = tiff + u32(ep + 8); break; }
+          }
+          if (!gpsIfd || gpsIfd + 2 > view.byteLength) return null;
+          const gEntries = u16(gpsIfd);
+          let latRef = 'N', lonRef = 'E', lat = null, lon = null;
+          for (let i = 0; i < gEntries; i++) {
+            const ep = gpsIfd + 2 + i * 12;
+            if (ep + 12 > view.byteLength) break;
+            const tag = u16(ep);
+            if (tag === 1) {
+              const ch = String.fromCharCode(view.getUint8(ep + 8));
+              if (ch === 'S' || ch === 'N') latRef = ch;
+            } else if (tag === 3) {
+              const ch = String.fromCharCode(view.getUint8(ep + 8));
+              if (ch === 'W' || ch === 'E') lonRef = ch;
+            } else if (tag === 2 || tag === 4) {
+              const valOff = tiff + u32(ep + 8);
+              if (valOff + 24 <= view.byteLength) {
+                const deg = rat(valOff) + rat(valOff + 8) / 60 + rat(valOff + 16) / 3600;
+                if (tag === 2) lat = deg; else lon = deg;
+              }
+            }
+          }
+          if (lat !== null && lon !== null && isFinite(lat) && isFinite(lon) && (lat !== 0 || lon !== 0)) {
+            const fLat = (latRef === 'S' ? -lat : lat).toFixed(5);
+            const fLon = (lonRef === 'W' ? -lon : lon).toFixed(5);
+            return parseGps(`${fLat}, ${fLon}`);
+          }
+        }
+        offset += len;
+      } else if ((marker & 0xFF00) !== 0xFF00) {
+        break;
+      } else {
+        offset += view.getUint16(offset, false);
+      }
+    }
+  } catch (e) { /* ignore malformed exif */ }
+  return null;
+}
+
+async function extractExifGps(file) {
+  if (!file || typeof file.slice !== 'function') return null;
+  try {
+    const slice = file.slice(0, 131072);
+    const buf = typeof slice.arrayBuffer === 'function'
+      ? await slice.arrayBuffer()
+      : await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result);
+        fr.onerror = rej;
+        fr.readAsArrayBuffer(slice);
+      });
+    return parseExifGpsFromBuffer(buf);
+  } catch (e) { return null; }
+}
+
+function getLiveGps(timeoutMs = 5500) {
+  return new Promise(resolve => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve(`${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 60000 }
+    );
+  });
+}
+
 function photosBox(id) {
   const ph = photos[id] || [];
-  return `<h3 class="sec">${t('my_photos')} <span class="muted">${ph.length ? '(' + ph.length + ')' : ''}</span>${cloudOn() ? `<span class="chip c-sora mini-chip">☁ Drive</span>` : ''}</h3>
-    <div class="photos">${ph.map((src, k) => `<div class="photo"><img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer"><button type="button" onclick="delPhoto('${id}',${k})" aria-label="delete">${ic('x')}</button>${src.startsWith('data:') && cloudOn() ? '<span class="ph-local">⏳</span>' : ''}</div>`).join('')}
-      <label class="photo add">${ic('camera')}<span>${t('take_photo')}</span><input type="file" accept="image/*" capture="environment" hidden onchange="addPhotos('${id}',this.files)"></label>
-      <label class="photo add">${ic('plus')}<span>${t('from_gallery')}</span><input type="file" accept="image/*" multiple hidden onchange="addPhotos('${id}',this.files)"></label></div>`;
+  const curGps = getEntityGps(id);
+  return `<div id="photosBoxWrap"><h3 class="sec">${t('my_photos')} <span class="muted">${ph.length ? '(' + ph.length + ')' : ''}</span>${cloudOn() ? `<span class="chip c-sora mini-chip">☁ Drive</span>` : ''}</h3>
+    <div class="small muted" style="margin:-4px 0 6px">✨ ${t('photo_comp_info')}</div>
+    <div class="ph-gps-box">
+      <div class="small" style="font-weight:600">${t('photo_gps_bar')}</div>
+      <div class="ph-gps-row">
+        <input id="phGpsInput" class="input mono" value="${esc(curGps)}" placeholder="${t('photo_gps_ph')}">
+        <button type="button" class="chip" onclick="fillPhotoGpsHere('${id}')">${ic('locate')}${t('use_here')}</button>
+        <button type="button" class="chip c-matcha" onclick="savePhotoPlaceGps('${id}')">✓ ${t('photo_gps_save')}</button>
+      </div>
+    </div>
+    <div id="camBox" class="cam-box">
+      <div class="cam-video-wrap"><video id="camVideo" autoplay playsinline muted></video></div>
+      <div class="cam-bar">
+        <button type="button" class="chip" onclick="switchAppCamera('${id}')">🔄 ${t('photo_cam_switch')}</button>
+        <button type="button" class="btn btn-sakura" style="height:38px;padding:0 16px" onclick="snapAppCamera('${id}')">${t('photo_cam_snap')}</button>
+        <button type="button" class="chip" onclick="stopAppCamera()">✕</button>
+      </div>
+    </div>
+    <div class="photos">${ph.map((src, k) => {
+      const m = getPhotoMeta(id, src, k);
+      const gTag = m.gps || curGps;
+      const kbTag = m.sizeKB ? `${m.sizeKB}KB` : '';
+      return `<div class="photo" onclick="openPhotoViewer('${id}',${k})">
+        <img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        ${gTag ? `<span class="ph-gps-tag">📍 ${esc(gTag)}</span>` : ''}
+        ${kbTag ? `<span class="ph-kb-tag">${esc(kbTag)}</span>` : ''}
+        <button type="button" class="ph-del" onclick="event.stopPropagation();delPhoto('${id}',${k})" aria-label="delete">${ic('x')}</button>
+        ${src.startsWith('data:') && cloudOn() ? '<span class="ph-local">⏳</span>' : ''}
+      </div>`;
+    }).join('')}
+      <button type="button" class="photo add" onclick="toggleAppCamera('${id}')">${ic('camera')}<span>${t('photo_cam_live')}</span></button>
+      <label class="photo add">${ic('camera')}<span>${t('take_photo')}</span><input type="file" accept="image/*" capture="environment" hidden onchange="addPhotos('${id}',this.files,'camera')"></label>
+      <label class="photo add">${ic('plus')}<span>${t('from_gallery')}</span><input type="file" accept="image/*" multiple hidden onchange="addPhotos('${id}',this.files,'gallery')"></label></div></div>`;
+}
+
+function savePhotoPlaceGps(id) {
+  const raw = ($('#phGpsInput')?.value || '').trim();
+  if (!raw) return toast(t('gps_bad'));
+  const g = applyGpsToEntity(id, raw, true);
+  if (!g) return toast(t('gps_bad'));
+  refreshPhotoView(id);
+}
+
+async function fillPhotoGpsHere(id) {
+  toast(t('geo_wait'));
+  const g = await getLiveGps(8000);
+  if (!g) return toast(t('geo_fail'));
+  applyGpsToEntity(id, g, true);
+  refreshPhotoView(id);
+}
+
+async function toggleAppCamera(id) {
+  const box = $('#camBox');
+  if (camStream && box && box.classList.contains('on')) {
+    stopAppCamera();
+    return;
+  }
+  stopAppCamera();
+  camTargetId = id;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    // ถ้าเบราว์เซอร์ไม่รองรับ getUserMedia ให้เปิดกล้องมือถือผ่าน input capture ทันที
+    const inp = document.querySelector('.photo.add input[capture]');
+    if (inp) inp.click();
+    return;
+  }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: camFacing }, width: { ideal: 1920 }, height: { ideal: 1440 } },
+      audio: false,
+    });
+    if (box) box.classList.add('on');
+    const video = $('#camVideo');
+    if (video) {
+      video.srcObject = camStream;
+      await video.play().catch(() => {});
+    }
+    // ดึงพิกัด GPS ปัจจุบันเตรียมไว้ขณะเปิดกล้อง
+    getLiveGps(6000).then(g => {
+      if (g && $('#phGpsInput') && !$('#phGpsInput').value.trim()) {
+        $('#phGpsInput').value = g;
+      }
+    });
+  } catch (e) {
+    stopAppCamera();
+    const inp = document.querySelector('.photo.add input[capture]');
+    if (inp) inp.click();
+  }
+}
+
+function switchAppCamera(id) {
+  camFacing = camFacing === 'environment' ? 'user' : 'environment';
+  stopAppCamera();
+  toggleAppCamera(id || camTargetId);
+}
+
+async function snapAppCamera(id) {
+  const video = $('#camVideo');
+  if (!video || !video.videoWidth) return;
+  const c = document.createElement('canvas');
+  c.width = video.videoWidth;
+  c.height = video.videoHeight;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(video, 0, 0, c.width, c.height);
+  stopAppCamera();
+  const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.92));
+  if (blob) await addPhotos(id, [blob], 'camera');
+}
+
+function openPhotoViewer(id, k) {
+  const list = photos[id] || [];
+  const src = list[k];
+  if (!src) return;
+  const m = getPhotoMeta(id, src, k);
+  const gps = m.gps || getEntityGps(id);
+  const fid = typeof driveIdOf === 'function' ? driveIdOf(src) : null;
+  const hiResSrc = fid ? `https://drive.google.com/thumbnail?id=${fid}&sz=w1600` : src;
+  const driveViewUrl = fid ? `https://drive.google.com/file/d/${fid}/view` : src;
+  const placeTitle = PLACES[id] ? pName(PLACES[id]) : ((state.hotels || []).find(h => h.id === id)?.name || (state.restaurants || []).find(r => r.id === id)?.name || id);
+  const b = $('#big');
+  if (!b) return;
+  b.innerHTML = `<button class="big-x" onclick="closeBig()" aria-label="close">${ic('x')}</button>
+    <div class="big-body" style="padding-top:54px">
+      <div class="big-hint">📸 ${esc(placeTitle)} (${k + 1}/${list.length})${m.sizeKB ? ` · คมชัด HD (${m.origKB ? `${m.origKB}KB → ` : ''}${m.sizeKB}KB)` : ''}</div>
+      <img class="ph-viewer-img" src="${esc(hiResSrc)}" alt="${esc(placeTitle)}" referrerpolicy="no-referrer">
+      ${gps ? `<div class="gps" style="max-width:440px;width:100%">
+        <div style="text-align:left"><div class="small muted">📍 GPS ของภาพ / สถานที่</div><code>${esc(gps)}</code></div>
+        <div style="display:flex;gap:6px">
+          <button class="mini" onclick="copyTxt('${esc(gps)}')">${t('copy')}</button>
+          <a class="mini" style="text-decoration:none;background:var(--sora);color:var(--sora-ink);padding:4px 10px;border-radius:8px" href="${mapUrl(gps)}" target="_blank" rel="noopener">${t('view_map')}</a>
+        </div>
+      </div>` : ''}
+      <div class="cat-pick" style="justify-content:center;margin-top:8px">
+        <a class="btn btn-ink" style="padding:0 18px;height:42px;text-decoration:none" href="${esc(hiResSrc)}" download="${esc(id + '_' + (k + 1) + '.jpg')}" target="_blank" rel="noopener">⬇ ${t('photo_download')}</a>
+        ${fid ? `<a class="btn btn-soft" style="padding:0 18px;height:42px;text-decoration:none" href="${esc(driveViewUrl)}" target="_blank" rel="noopener">☁ ${t('photo_view_drive')}</a>` : ''}
+      </div>
+    </div>`;
+  b.classList.add('on');
+}
+
+function setPlaceArt(id, artKey) {
+  if (!ART[artKey]) return;
+  ensurePlaceInDb(id);
+  const p = placeOf(id);
+  state.customPlaces = state.customPlaces || {};
+  state.customPlaces[id] = { ...(state.customPlaces[id] || p), art: artKey, custom: true };
+  if (PLACES[id]) PLACES[id].art = artKey;
+  if (typeof mergePlaces === 'function') mergePlaces();
+  saveState();
+  if ($('#s-day')) renderDay();
+  if ($('#sheet')) openPlace(id);
+  toast(t('art_changed'));
 }
 
 function openPlace(id) {
+  ensurePlaceInDb(id);
   const p = placeOf(id);
   const hi = (p.hi?.[L()]?.length ? p.hi[L()] : p.hi?.th) || [], miss = (p.miss?.[L()]?.length ? p.miss[L()] : p.miss?.th) || [];
   const custom = !!state.customPlaces?.[id];
-  const inToday = ui.screen === 'day' && state.days[ui.day]?.stops.some(s => s.id === id);
-  openSheet(`<div class="cover">${ART[p.art] || ART.city}</div>
+  const assignedDays = placeDaysOf(id);
+  const curArt = ART[p.art] ? p.art : 'city';
+  openSheet(`<div class="cover" id="placeCoverArt">${ART[curArt]}</div>
     <h2 class="sheet-title">${esc(pName(p))}</h2><div class="jpname">${esc(p.name.ja || p.name.th)}${p.ro ? ' · ' + esc(p.ro) : ''}${custom ? ` · <span class="chip c-yuzu mini-chip">${t('my_place')}</span>` : p.src === 'sheet' ? ` · <span class="chip c-matcha mini-chip">Sheet</span>` : ''}</div>
+    <h3 class="sec">${t('move_day')}</h3>
+    <div class="cat-pick">
+      ${state.days.map((d, k) => {
+        const isOn = assignedDays.includes(k);
+        return `<button type="button" class="chip ${isOn ? 'c-matcha on' : ''}" onclick="changePlaceDay('${id}',${k},'place')">${isOn ? '✓ ' : ''}${t('day_n', { n: k + 1 })} · ${dShort(k)}</button>`;
+      }).join('')}
+      ${assignedDays.length ? `<button type="button" class="chip c-sakura" onclick="changePlaceDay('${id}',-1,'place')">${t('remove_from_trip')}</button>` : ''}
+    </div>
+    <h3 class="sec">${t('look')} <span class="muted small">(${t('pick_art_hint')})</span></h3>
+    <div class="art-pick">${ARTS.map(a => `<button type="button" class="${curArt === a ? 'on' : ''}" data-v="${a}" onclick="setPlaceArt('${id}','${a}')"><span class="art-box">${ART[a]}</span><span class="art-lbl">${t(ART_KEYS[a])}</span></button>`).join('')}</div>
     ${hi.length ? `<h3 class="sec">${t('highlights')}</h3><div class="list">${hi.map(x => `<div class="li"><span class="b c-sora">✓</span>${esc(x)}</div>`).join('')}</div>` : ''}
     ${miss.length ? `<h3 class="sec">${t('dont_miss')}</h3><div class="list">${miss.map(x => `<div class="li"><span class="b c-sakura">!</span>${esc(x)}</div>`).join('')}</div>` : ''}
     <h3 class="sec">${t('for_car')}</h3>
     ${p.gps ? `<div class="gps"><div><div class="small muted">GPS</div><code>${esc(p.gps)}</code></div><button class="mini" onclick="copyTxt('${esc(p.gps)}')">${t('copy')}</button></div>` : ''}
     <div class="gps"><div><div class="small muted">Mapcode</div>${p.mapcode ? `<code>${esc(p.mapcode)}</code>` : `<span class="muted small">${t('mapcode_soon')}</span>`}</div>${p.mapcode ? `<button class="mini" onclick="copyTxt('${esc(p.mapcode)}')">${t('copy')}</button>` : ''}</div>
     ${tx(p.transit) ? `<h3 class="sec">${t('public_transit')}</h3><div class="gps start">${ic('train')}<div class="small">${esc(tx(p.transit))}</div></div>` : ''}
-    ${inToday && state.days.length > 1 ? `<h3 class="sec">${t('move_day')}</h3><div class="cat-pick">${state.days.map((d, k) => k === ui.day ? '' : `<button type="button" class="chip" onclick="moveStopToDay('${id}',${k})">${t('day_n', { n: k + 1 })} · ${dShort(k)}</button>`).join('')}</div>` : ''}
     ${photosBox(id)}
     <div class="actions">
       ${p.gps ? `<a class="btn btn-ink" href="${dirUrl(null, p.gps, state.days[ui.day]?.mode || 'car')}" target="_blank" rel="noopener">${ic('pin')}${t('navigate')}</a>` : ''}
       <button class="btn btn-sakura" onclick="showToLocal('${id}')">${ic('talk')}${t('show_local')}</button>
-      ${custom ? `<button class="btn btn-soft" onclick="openCustomPlace('${id}')">${ic('edit')}${t('edit')}</button>` : ''}
+      <button class="btn btn-soft" onclick="openCustomPlace('${id}')">${ic('edit')}${t('edit')}</button>
     </div>`);
 }
 
-function compressImage(file, max = 1000, q = .72) {
+/** บีบอัดภาพแบบ Multi-step Step-down Scaling รักษาความคมชัดสูง (HD 1600px) แต่ลดขนาดไฟล์ลง ~90% */
+function compressImage(file, max = 1600, q = .85) {
   return new Promise((res, rej) => {
-    const img = new Image(), url = URL.createObjectURL(file);
+    const isStr = typeof file === 'string';
+    const img = new Image();
+    const url = isStr ? file : URL.createObjectURL(file);
     img.onload = () => {
-      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const k = Math.min(1, max / Math.max(img.width || 1, img.height || 1));
+      const targetW = Math.max(1, Math.round(img.width * k));
+      const targetH = Math.max(1, Math.round(img.height * k));
+
+      // ย่อทีละขั้น (Step-down halving) เมื่อภาพต้นฉบับใหญ่กว่า 2 เท่า เพื่อป้องกันภาพแตกหรือเบลอ
+      let curSource = img, curW = img.width, curH = img.height;
+      while (curW * 0.5 > targetW && curH * 0.5 > targetH) {
+        curW = Math.max(targetW, Math.round(curW * 0.5));
+        curH = Math.max(targetH, Math.round(curH * 0.5));
+        const stepCanvas = document.createElement('canvas');
+        stepCanvas.width = curW; stepCanvas.height = curH;
+        const sCtx = stepCanvas.getContext('2d');
+        sCtx.imageSmoothingEnabled = true;
+        sCtx.imageSmoothingQuality = 'high';
+        sCtx.drawImage(curSource, 0, 0, curW, curH);
+        curSource = stepCanvas;
+      }
+
       const c = document.createElement('canvas');
-      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', q));
+      c.width = targetW; c.height = targetH;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(curSource, 0, 0, targetW, targetH);
+      if (!isStr) URL.revokeObjectURL(url);
+
+      let dataUrl = c.toDataURL('image/jpeg', q);
+      // ถ้าไฟล์ยังใหญ่เกิน ~450KB ให้ปรับบีบอัดเพิ่มเล็กน้อยโดยคงความละเอียด 1600px เท่าเดิม
+      if (dataUrl.length > 620000 && q > 0.76) {
+        dataUrl = c.toDataURL('image/jpeg', 0.78);
+      }
+      res(dataUrl);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad image')); };
+    img.onerror = () => { if (!isStr) URL.revokeObjectURL(url); rej(new Error('bad image')); };
     img.src = url;
   });
 }
 function refreshPhotoView(id) {
-  if ($('#sheet').classList.contains('on')) {
+  if ($('#sheet')?.classList.contains('on')) {
+    if ($('#pName')) {
+      const wrap = $('#photosBoxWrap');
+      if (wrap) wrap.outerHTML = photosBox(id);
+      return;
+    }
     if (PLACES[id]) openPlace(id);
     else if (state.hotels.some(h => h.id === id)) openHotel(id);
     else if ((state.restaurants || []).some(r => r.id === id)) openRestaurant(id);
   }
   if (['day', 'hotels', 'restaurants'].includes(ui.screen)) rerender();
 }
-async function addPhotos(id, files) {
+async function addPhotos(id, files, source = 'gallery') {
   if (!files || !files.length) return;
   const list = photos[id] = photos[id] || [];
   const added = [];
-  for (const f of files) { try { const d = await compressImage(f); list.push(d); added.push(d); } catch (e) { toast(t('photo_bad')); } }
+  const inputGps = parseGps(($('#phGpsInput')?.value || $('#pGps')?.value || '').trim());
+  let detectedGps = inputGps || '';
+  let lastOrigKB = 0, lastCompKB = 0;
+
+  if (source === 'camera' && !detectedGps) {
+    const liveGps = await getLiveGps(4500);
+    if (liveGps) detectedGps = liveGps;
+  }
+
+  for (const f of files) {
+    try {
+      const exifGps = await extractExifGps(f);
+      if (exifGps) {
+        detectedGps = exifGps;
+        toast(t('photo_exif_found', { gps: exifGps }));
+      }
+      const origKB = f.size ? Math.max(1, Math.round(f.size / 1024)) : 0;
+      const d = await compressImage(f, cloudOn() ? 1600 : 1280, cloudOn() ? 0.85 : 0.80);
+      const compKB = Math.max(1, Math.round((d.length * 3) / 4 / 1024));
+      lastOrigKB = origKB; lastCompKB = compKB;
+      const photoGps = exifGps || detectedGps || getEntityGps(id) || '';
+      list.push(d);
+      setPhotoMeta(id, d, { gps: photoGps, origKB, sizeKB: compKB, at: Date.now() });
+      added.push({ dataUrl: d, gps: photoGps, origKB, sizeKB: compKB });
+    } catch (e) {
+      toast(t('photo_bad'));
+    }
+  }
+
+  if (detectedGps) {
+    applyGpsToEntity(id, detectedGps, false);
+  }
+
   if (!savePhotos(photos) && !cloudOn()) list.splice(list.length - added.length);
   refreshPhotoView(id);
-  if (!cloudOn()) { toast(t('photo_saved')); return; }
+  if (!cloudOn()) {
+    toast(lastOrigKB ? t('photo_comp_done', { orig: lastOrigKB, comp: lastCompKB }) : t('photo_saved'));
+    return;
+  }
   toast(t('photo_uploading'));
   let ok = 0;
-  for (const d of added) {
-    const url = await uploadPhoto(id, d);
-    if (url) { const k = list.indexOf(d); if (k >= 0) list[k] = url; ok++; }
+  for (const item of added) {
+    const url = await uploadPhoto(id, item.dataUrl, item.gps);
+    if (url) {
+      const k = list.indexOf(item.dataUrl);
+      if (k >= 0) list[k] = url;
+      setPhotoMeta(id, url, { gps: item.gps, origKB: item.origKB, sizeKB: item.sizeKB, at: Date.now() });
+      ok++;
+    }
   }
-  savePhotos(photos); refreshPhotoView(id);
+  savePhotos(photos); saveState(); refreshPhotoView(id);
   toast(ok === added.length ? t('photo_uploaded') : t('photo_upload_fail'));
 }
 function delPhoto(id, k) {
   if (!confirm(t('confirm_del'))) return;
   const [url] = photos[id].splice(k, 1);
+  if (state.photoMeta?.[id]) {
+    state.photoMeta[id] = state.photoMeta[id].filter((m, idx) => m?.url !== url && idx !== k);
+  }
   if (url && !url.startsWith('data:')) deleteCloudPhoto(url);
-  savePhotos(photos); refreshPhotoView(id);
+  savePhotos(photos); saveState(); refreshPhotoView(id);
 }
 
 /* ---------- สถานที่ที่สร้างเอง ---------- */
 const ARTS = ['temple', 'shrine', 'street', 'fuji', 'lake', 'water', 'park', 'city'];
+const ART_KEYS = { temple: 'art_temple', shrine: 'art_shrine', street: 'art_street', fuji: 'art_fuji', lake: 'art_lake', water: 'art_water', park: 'art_park', city: 'art_city' };
+let draftCustomPlaceId = null;
 function openCustomPlace(id) {
-  const p = id ? state.customPlaces[id] : { name:{ th:'', ja:'' }, area:{ th:'' }, dur:60, gps:'', art:'city', hi:{ th:[] }, miss:{ th:[] }, transit:{ th:'' } };
+  const existing = id ? (state.customPlaces?.[id] || PLACES[id]) : null;
+  const p = existing || { name:{ th:'', ja:'' }, area:{ th:'' }, dur:60, gps:'', art:'city', hi:{ th:[] }, miss:{ th:[] }, transit:{ th:'' } };
+  const curArt = ART[p.art] ? p.art : 'city';
+  draftCustomPlaceId = id || uid('c_');
   openSheet(`<h2 class="sheet-title">${id ? t('edit_place') : t('new_place')}</h2>
     <p class="muted small">${t('new_place_sub')}</p>
-    <label class="lbl">${t('place_name')}</label><input id="pName" class="input" value="${esc(p.name.th)}" placeholder="${t('place_name_ph')}">
-    <div class="two"><div><label class="lbl">${t('place_name_ja')}</label><input id="pJa" class="input" value="${esc(p.name.ja === p.name.th ? '' : p.name.ja)}" placeholder="例：浅草寺"></div>
+    <label class="lbl">${t('place_name')}</label><input id="pName" class="input" value="${esc(p.name?.th || '')}" placeholder="${t('place_name_ph')}">
+    <div class="two"><div><label class="lbl">${t('place_name_ja')}</label><input id="pJa" class="input" value="${esc(p.name?.ja === p.name?.th ? '' : (p.name?.ja || ''))}" placeholder="例：浅草寺"></div>
       <div><label class="lbl">${t('area')}</label><input id="pArea" class="input" value="${esc(p.area?.th || '')}" placeholder="${t('area_ph')}"></div></div>
-    <label class="lbl">GPS</label><input id="pGps" class="input mono" value="${esc(p.gps)}" placeholder="35.71480, 139.79665" oninput="pGpsCheck()">
+    <label class="lbl">GPS</label><input id="pGps" class="input mono" value="${esc(p.gps || '')}" placeholder="35.71480, 139.79665" oninput="pGpsCheck()">
     <div id="pGpsMsg" class="small muted">${t('gps_help')}</div>
     <div class="gps-tools"><button class="chip" onclick="window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent($('#pName').value+' '+$('#pArea').value),'_blank','noopener');toast(t('gmaps_tip'))">${ic('search')}${t('find_gmaps')}</button>
       <button class="chip" onclick="navigator.geolocation&&navigator.geolocation.getCurrentPosition(p=>{$('#pGps').value=p.coords.latitude.toFixed(5)+', '+p.coords.longitude.toFixed(5);pGpsCheck()},()=>toast(t('geo_fail')))">${ic('locate')}${t('use_here')}</button></div>
     <label class="lbl">${t('stay_time')}</label>
     <div class="cat-pick" id="pDur">${[30, 45, 60, 90, 120, 180, 240].map(m => `<button type="button" class="chip ${p.dur === m ? 'on' : ''}" data-v="${m}" onclick="pickCat(this)">${durTxt(m)}</button>`).join('')}</div>
-    <label class="lbl">${t('look')}</label>
-    <div class="art-pick" id="pArt">${ARTS.map(a => `<button type="button" class="${p.art === a ? 'on' : ''}" data-v="${a}" onclick="pickCat(this)">${ART[a]}</button>`).join('')}</div>
+    <label class="lbl">${t('look')} <span class="muted small">(${t('pick_art_hint')})</span></label>
+    <div class="cover" id="pArtPreview" style="height:110px;margin:4px 0 8px">${ART[curArt]}</div>
+    <div class="art-pick" id="pArt">${ARTS.map(a => `<button type="button" class="${curArt === a ? 'on' : ''}" data-v="${a}" onclick="pickCat(this)"><span class="art-box">${ART[a]}</span><span class="art-lbl">${t(ART_KEYS[a])}</span></button>`).join('')}</div>
+    ${photosBox(draftCustomPlaceId)}
     <label class="lbl">${t('highlights')} <span class="muted">(${t('one_per_line')})</span></label><textarea id="pHi" class="input area">${esc((p.hi?.th || []).join('\n'))}</textarea>
     <label class="lbl">${t('dont_miss')} <span class="muted">(${t('one_per_line')})</span></label><textarea id="pMiss" class="input area">${esc((p.miss?.th || []).join('\n'))}</textarea>
     <label class="lbl">${t('public_transit')}</label><input id="pTransit" class="input" value="${esc(p.transit?.th || '')}" placeholder="${t('transit_ph')}">
-    <div class="actions">${id ? `<button class="btn btn-danger" onclick="delCustomPlace('${id}')">${t('delete')}</button>` : `<button class="btn btn-soft" onclick="closeSheet()">${t('cancel')}</button>`}
+    <div class="actions">${id && state.customPlaces?.[id] ? `<button class="btn btn-danger" onclick="delCustomPlace('${id}')">${t('delete')}</button>` : `<button class="btn btn-soft" onclick="closeSheet()">${t('cancel')}</button>`}
       <button class="btn btn-ink" onclick="saveCustomPlace(${id ? `'${id}'` : 'null'})">${id ? t('save') : t('save_add')}</button></div>`);
   if (p.gps) pGpsCheck();
 }
@@ -691,20 +1181,25 @@ function pGpsCheck() {
 function saveCustomPlace(id) {
   const name = $('#pName').value.trim();
   if (!name) { toast(t('need_place_name')); return; }
-  const raw = $('#pGps').value.trim(), gps = raw ? parseGps(raw) : '';
+  const raw = ($('#pGps')?.value || $('#phGpsInput')?.value || '').trim(), gps = raw ? parseGps(raw) : '';
   if (raw && !gps) { toast(t('gps_bad')); return; }
   const lines = s => s.split('\n').map(x => x.trim()).filter(Boolean);
   const ja = $('#pJa').value.trim(), area = $('#pArea').value.trim(), transit = $('#pTransit').value.trim();
+  const prev = id ? (state.customPlaces?.[id] || PLACES[id] || {}) : {};
   const rec = {
-    name:{ th:name, ja: ja || name }, ro: ja ? name : name, area:{ th:area, ja:area },
-    art: document.querySelector('#pArt .on')?.dataset.v || 'city', dur: +(document.querySelector('#pDur .on')?.dataset.v || 60), gps,
-    hi:{ th: lines($('#pHi').value), ja: lines($('#pHi').value) }, miss:{ th: lines($('#pMiss').value), ja: lines($('#pMiss').value) },
-    transit:{ th: transit, ja: transit }, custom: true,
+    ...prev,
+    name:{ th:name, ja: ja || prev.name?.ja || name }, ro: prev.ro || ja || name, area:{ th:area, ja: prev.area?.ja || area },
+    art: document.querySelector('#pArt button.on')?.dataset.v || prev.art || 'city',
+    dur: +(document.querySelector('#pDur .on')?.dataset.v || prev.dur || 60), gps,
+    hi:{ th: lines($('#pHi').value), ja: prev.hi?.ja?.length ? prev.hi.ja : lines($('#pHi').value) },
+    miss:{ th: lines($('#pMiss').value), ja: prev.miss?.ja?.length ? prev.miss.ja : lines($('#pMiss').value) },
+    transit:{ th: transit, ja: prev.transit?.ja || transit }, custom: true,
   };
   state.customPlaces = state.customPlaces || {};
   const isNew = !id;
-  id = id || uid('c_');
+  id = id || draftCustomPlaceId || uid('c_');
   state.customPlaces[id] = rec;
+  if (typeof mergePlaces === 'function') mergePlaces();
   saveState();
   if (isNew && ui.screen === 'day') { addStop(id); return; }
   closeSheet(); rerender(); toast(t('saved'));
@@ -882,7 +1377,14 @@ function openExpense(id) {
       <button class="btn btn-ink" onclick="saveExpense(${id ? `'${id}'` : 'null'})">${t('save')}</button></div>`);
   exPreview();
 }
-function pickCat(b) { b.parentElement.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b)); }
+function pickCat(b) {
+  if (!b || !b.parentElement) return;
+  b.parentElement.querySelectorAll('button, .chip').forEach(x => x.classList.toggle('on', x === b));
+  if (b.parentElement.id === 'pArt' && b.dataset.v && ART[b.dataset.v]) {
+    const prev = $('#pArtPreview');
+    if (prev) prev.innerHTML = ART[b.dataset.v];
+  }
+}
 function exPreview() {
   const a = parseFloat(String($('#exAmt').value).replace(/,/g, '')), c = $('#exCur').value;
   const targets = ['THB', 'JPY'].filter(x => x !== c).concat(dCur() !== c && !['THB', 'JPY'].includes(dCur()) ? [dCur()] : []);
@@ -1637,9 +2139,9 @@ function buildSmartRecs(q = '', forceZone = null, forceDayIdx = null) {
     const dayStops = state.days[dIdx]?.stops.map(s => PLACES[s.id]).filter(Boolean) || [];
     const refGps = dayStops[0]?.gps || z.center;
 
-    // 1. ค้นหาที่เที่ยวใน PLACES (รวมถึงจาก Sheet และที่สร้างเอง) ที่อยู่ในโซนเดียวกันแต่ยังไม่ได้ใส่ในทริป
+    // 1. ค้นหาที่เที่ยวใน PLACES (รวมถึงจาก Sheet และที่สร้างเอง) ที่อยู่ในโซนเดียวกัน
     Object.entries(PLACES).forEach(([id, p]) => {
-      if (usedPlaceIds.has(id) || places.some(x => x.id === id)) return;
+      if (places.some(x => x.id === id)) return;
       const pZk = matchZoneKey(`${tx(p.area)} ${p.name?.th || ''} ${p.name?.ja || ''}`, p.gps);
       const dist = refGps && p.gps ? gpsDistKm(refGps, p.gps) : null;
       if (pZk === zKey || (dist !== null && dist <= 7)) {
@@ -1647,15 +2149,16 @@ function buildSmartRecs(q = '', forceZone = null, forceDayIdx = null) {
           id, name: p.name, area: p.area, dur: p.dur, gps: p.gps, art: p.art,
           hi: { th: (p.hi?.th || [])[0] || '', ja: (p.hi?.ja || [])[0] || '' },
           day: dIdx + 1, distKm: dist, fromUserDb: !!p.src || !!p.custom,
+          alreadyPicked: usedPlaceIds.has(id),
         });
       }
     });
 
     // 2. ค้นหาที่เที่ยวแนะนำประจำโซนนั้น
     z.places.forEach(np => {
-      if (!usedPlaceIds.has(np.id) && !places.some(x => x.id === np.id)) {
+      if (!places.some(x => x.id === np.id)) {
         const dist = refGps && np.gps ? gpsDistKm(refGps, np.gps) : null;
-        places.push({ ...np, day: dIdx + 1, distKm: dist });
+        places.push({ ...np, day: dIdx + 1, distKm: dist, alreadyPicked: usedPlaceIds.has(np.id) });
       }
     });
 
@@ -1682,7 +2185,7 @@ function buildSmartRecs(q = '', forceZone = null, forceDayIdx = null) {
     });
   });
 
-  places.sort((a, b) => (b.fromUserDb ? 1 : 0) - (a.fromUserDb ? 1 : 0) || ((a.distKm ?? 99) - (b.distKm ?? 99)));
+  places.sort((a, b) => (a.alreadyPicked ? 1 : 0) - (b.alreadyPicked ? 1 : 0) || (b.fromUserDb ? 1 : 0) - (a.fromUserDb ? 1 : 0) || ((a.distKm ?? 99) - (b.distKm ?? 99)));
   restaurants.sort((a, b) => (b.fromUserSheet ? 1 : 0) - (a.fromUserSheet ? 1 : 0) || ((a.distKm ?? 99) - (b.distKm ?? 99)));
 
   const onlyFood = /ร้าน|อาหาร|กิน|หิว|ราเมน|เนื้อ|ซูชิ|คาเฟ่|グルメ|レストラン|食/.test(ql) && !/ที่เที่ยว|แพลน|โซน/.test(ql);
@@ -1690,7 +2193,7 @@ function buildSmartRecs(q = '', forceZone = null, forceDayIdx = null) {
   const singleDay = targetDays.length === 1;
 
   return {
-    places: onlyFood ? [] : places.slice(0, singleDay ? 8 : 10),
+    places: onlyFood ? [] : places.slice(0, singleDay ? 10 : 12),
     restaurants: onlyPlaces ? [] : restaurants.slice(0, singleDay ? 8 : 12),
   };
 }
@@ -1703,10 +2206,18 @@ function recsCard(recs, msgIdx) {
       const name = tx(p.name) || p.name;
       const area = tx(p.area) || p.area || '';
       const hi = typeof p.hi === 'object' ? tx(p.hi) : (p.hi || '');
-      const dayN = p.day || (ui.day + 1);
+      const days = p.id ? placeDaysOf(p.id) : [];
+      const isPicked = days.length > 0 || !!p.added;
+      const curDayIdx = days.length ? days[0] : Math.max(0, (p.day || (ui.day + 1)) - 1);
+      const dayN = curDayIdx + 1;
       const distTxt = p.distKm != null ? ` · ~${p.distKm.toFixed(1)} กม.` : '';
-      return `<div class="ai-rec-item"><div class="grow"><b>${esc(name)}</b>${p.fromUserDb ? ` <span class="chip c-matcha mini-chip">ใน Sheet/แอป</span>` : ''} <span class="muted small">· ${esc(area)}${distTxt} (${t('day_n', { n: dayN })})</span>${hi ? `<div class="small muted">${esc(hi)}</div>` : ''}</div>
-        ${p.added ? `<span class="ok small">✓</span>` : `<button class="mini" onclick="addAiPlace(${msgIdx},${pi})">${t('ai_add_place', { d: dayN })}</button>`}</div>`;
+      return `<div class="ai-rec-item ${isPicked ? 'is-picked' : ''}"><div class="grow"><b>${esc(name)}</b>${isPicked ? ` <span class="chip c-matcha mini-chip">${esc(t('picked_in_day', { d: days.length ? days.map(d => d + 1).join(', ') : dayN }))}</span>` : ''}${p.fromUserDb ? ` <span class="chip c-sora mini-chip">ใน Sheet/แอป</span>` : ''} <span class="muted small">· ${esc(area)}${distTxt} (${t('day_n', { n: dayN })})</span>${hi ? `<div class="small muted">${esc(hi)}</div>` : ''}</div>
+        ${isPicked
+          ? `<select class="day-move-sel" aria-label="${t('change_day')}" onchange="changeAiPlaceDay(${msgIdx},${pi},+this.value)">
+              ${state.days.map((d, k) => `<option value="${k}" ${curDayIdx === k ? 'selected' : ''}>📅 ${t('day_n', { n: k + 1 })} (${dShort(k)})</option>`).join('')}
+              <option value="-1">${t('remove_from_trip')}</option>
+            </select>`
+          : `<button class="mini" onclick="addAiPlace(${msgIdx},${pi})">${t('ai_add_place', { d: dayN })}</button>`}</div>`;
     }).join('')}</div></div>`;
   }
   if (recs.restaurants && recs.restaurants.length) {
@@ -1727,6 +2238,7 @@ function addAiPlace(msgIdx, pIdx) {
   const m = aiLog[msgIdx], p = m?.recs?.places?.[pIdx];
   if (!p) return;
   const id = p.id || uid('cp');
+  p.id = id;
   if (!PLACES[id]) {
     const th = tx(p.name) || String(p.name);
     const ja = (typeof p.name === 'object' ? p.name.ja : p.nameJa) || th;
@@ -1750,6 +2262,20 @@ function addAiPlace(msgIdx, pIdx) {
   p.added = true;
   saveState(); renderAI();
   toast(t('ai_added_place', { name: pName(PLACES[id]), d: dayIdx + 1 }));
+}
+
+function changeAiPlaceDay(msgIdx, pIdx, targetDayIdx) {
+  const m = aiLog[msgIdx], p = m?.recs?.places?.[pIdx];
+  if (!p) return;
+  if (!p.id) p.id = uid('cp');
+  if (targetDayIdx >= 0) {
+    p.day = targetDayIdx + 1;
+    p.added = true;
+  } else {
+    p.added = false;
+  }
+  changePlaceDay(p.id, targetDayIdx, 'ai');
+  renderAI();
 }
 
 function addAiRest(msgIdx, rIdx) {
@@ -2405,14 +2931,17 @@ function openSheet(html) {
   sh.innerHTML = `<div class="grab"></div><button class="sheet-x" onclick="closeSheet()" aria-label="close">${ic('x')}</button>${html}`;
   sh.scrollTop = 0; sh.classList.add('on'); $('#scrim').classList.add('on');
 }
-function closeSheet() { $('#sheet')?.classList.remove('on'); $('#scrim')?.classList.remove('on'); }
+function closeSheet() { if (typeof stopAppCamera === 'function') stopAppCamera(); $('#sheet')?.classList.remove('on'); $('#scrim')?.classList.remove('on'); }
 function copyTxt(s) {
   (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => toast(t('copied')), () => { prompt(t('copy'), s); });
 }
 let toastTimer;
 function toast(msg) {
   let el = $('#toast');
-  if (!el) { el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el); }
+  if (!el) {
+    if (typeof document.createElement !== 'function') return;
+    el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el);
+  }
   el.textContent = msg; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('pop'), 2600);
 }
